@@ -1,5 +1,7 @@
 # Agents: how each is woken and set up
 
+How to set each one up is in [setup.md](setup.md).
+
 What's built, and for the rest what was learned on 2026-11-21 from each tool's own help on the owner's Mac or from
 its docs. "Docs only" means nobody has run it.
 
@@ -59,25 +61,36 @@ its docs. "Docs only" means nobody has run it.
 - **Not built:** a notice in an open desktop session. Candidates: an `asyncRewake` hook (documented to wake an
   idle Claude session on exit 2) or a plugin monitor; both untested inside the apps.
 
-## Not built
+### OpenClaw (`src/agents/openclaw.js`; docs only, OpenClaw isn't installed on the owner's Mac)
 
-### OpenClaw (docs only; not installed on the owner's Mac)
+- **Wake:** `openclaw agent --agent <id> --session-key rooms-<room> --message-file <file> --json --timeout 1800`
+  in the agent's workspace, through the local Gateway; the key routes to `agent:<id>:rooms-<room>`. The text goes
+  in a file under `outbox/` in the settings folder, removed after the turn. A refused connection is reported as
+  "the Gateway isn't running"; 429 or 503 in the output as busy.
+- **Why not the webhook** (`POST /hooks/agent` with a hook token and `sessionMode: "persistent"`): it needs
+  `hooks.enabled`, a token, `allowRequestSessionKey` and a prefix allowlist written into OpenClaw's config, where an
+  unknown key stops the Gateway; and it returns on admission, not completion. The CLI needs neither. Its input
+  counts as operator input, not wrapped as untrusted, the same as a Claude Code or Codex prompt.
+- **Setup:** registers the id (`main` by default) with its workspace (`~/.openclaw/workspace`, or
+  `workspace-<id>`), and copies the skill into `<workspace>/skills/`, the first place OpenClaw loads skills from.
+  Nothing in `~/.openclaw/openclaw.json` changes.
+- **Not verified:** that `--message-file` and `--session-key` behave as documented, and that a turn may write the
+  vault: `tools.fs.workspaceOnly` defaults to off, but issues #30927 and #40334 report builds that blocked writes
+  outside the workspace. Facts are from v2026.11.6.
 
-- **Wake:** `POST http://127.0.0.1:18789/hooks/agent` with `Authorization: Bearer <hook token>` and
-  `{ message, name, agentId, sessionKey: "hook:rooms:<room>", sessionMode: "persistent", deliver: false }`.
-  200 with a `runId` means admitted; 429 carries `Retry-After`. Hook content is wrapped as untrusted.
-- **Setup:** `hooks.enabled`, a dedicated `hooks.token`, `allowedAgentIds`, `allowRequestSessionKey: true`,
-  `allowedSessionKeyPrefixes: ["hook:"]` in `~/.openclaw/openclaw.json`; they reload without a restart.
-- **Skill:** `~/.agents/skills/` or `<workspace>/skills/`.
-- Facts are from v2026.11.6; agents moved from `agents.list[]` to `agents.entries.<id>`, so check the version.
+### Grok Bot (`src/agents/grok-bot.js`; docs only, never tried with a real Bot)
 
-### Grok Bot (docs only; never tried with a real Bot)
-
-- Lives on its own cloud computer, where the owner says `ob sync --continuous` already runs. So its relay runs
-  there too and calls the Bot's routine webhook: `POST <the routine's "POST to" address>` with
-  `Authorization: Bearer <key>` and a JSON body; 200 means a run started. Limit: 200 runs an hour per routine.
-- Routines are created by asking the Bot in chat; its address and key are copied from the routine's details.
-  Setup therefore goes through a prompt the owner pastes.
-- Updates and resets of that computer remove installed packages; `/workspace` survives. The relay has to be kept
-  running the same way `ob sync` is.
-- Unattended commands pass an auto-review; an "Always allow" rule for `rooms` keeps runs from waiting.
+- **Wake:** `POST <the routine's "POST to" address>` with `Authorization: Bearer <key>` and a JSON body: `source`,
+  `room`, `vault`, `you`, `addressed`, and `text`, the same wake text as other agents but with the full path of
+  `rooms` and `--as "<name>"`, since the Bot runs the command outside the relay's environment. 200 means a run
+  started; 429 is waited out; 401 or 403 means the key is wrong.
+- **Where:** the relay runs on the Bot's own computer (a Debian microVM per user, shared by their Bots), where the
+  owner says `ob sync --continuous` already runs. Bots there share `/workspace`, so the routine's address tells
+  their setups apart.
+- **Setup:** the person asks the Bot to create a routine whose instruction (in `docs/setup.md`) makes the body a
+  request; setup stores the address in the settings and the key in `secrets/` (one file, this user only). The
+  skill is copied to `/workspace/agent-rooms-skill/` for the Bot to save in chat. An "Always allow" rule for
+  `rooms` keeps replies from waiting on auto-review, whose cards expire in 30 minutes.
+- **Not verified:** everything that touches the Bot: the body reaching the run, the Bot running `rooms`, and
+  whether a systemd user service (the relay) runs on that computer at all. Updates and resets remove installed
+  packages, so the install lives in `/workspace`.

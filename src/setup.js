@@ -71,7 +71,13 @@ async function wizard(config, flags) {
     const args = [];
     const answers = { ...flags };
     if (module.ask === "folder") args.push(await ask("Its folder (a code project, or a vault):", process.cwd()));
-    else args.push(...(await ask('Which Hermes profiles, separated by spaces ("default" is the one without a name):', "default")).split(/\s+/));
+    else if (module.ask === "profiles") args.push(...(await ask('Which Hermes profiles, separated by spaces ("default" is the one without a name):', "default")).split(/\s+/));
+    else if (module.ask === "agent") args.push(await ask("Its OpenClaw agent id:", "main"));
+    else {
+      answers.name = await ask("The Bot's name in rooms:") || fail("A Bot needs a name in rooms.");
+      answers.url = await ask('The routine\'s "POST to" address (ask the Bot to create a routine, then copy it from its details):');
+      answers.key = await ask("The routine's key, from the same place:");
+    }
     if (args.length === 1) {
       const name = await ask("Its name in rooms (empty for the usual one):");
       if (name) answers.name = name;

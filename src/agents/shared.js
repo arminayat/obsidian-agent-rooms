@@ -81,15 +81,17 @@ export const lastLine = (output) => output.trim().split("\n").filter((line) => l
 
 /**
  * What a woken agent is told: who it is, what's new in the room since it last read, and how to act on it.
+ * `command` and `as` are for an agent that runs `rooms` outside the relay's environment (a Grok Bot routine).
  * @param {{ vault: string, room: string, messages: any[], earlier: number, addressed: boolean }} wake
  */
-export function wakeText(agent, { vault, room, messages, earlier, addressed }) {
-  const say = `rooms say "${room}" "<your message>" --vault "${vault}"`;
+export function wakeText(agent, { vault, room, messages, earlier, addressed }, { command = "rooms", as = false } = {}) {
+  const who = as ? ` --as "${agent.name}"` : "";
+  const say = `${command} say "${room}" "<your message>" --vault "${vault}"${who}`;
   // The whole text travels as one argument or one turn, so a very long message is cut; the file has all of it.
   messages = messages.map((m) => (m.body.length > LONGEST ? { ...m, body: `${m.body.slice(0, LONGEST)}\n… (cut here; the rest is in ${m.path})` } : m));
   return [
     `New in the room "${room}" (the Obsidian vault at ${vault}) since you last read it. You are "${agent.name}" there.`,
-    earlier ? `(${earlier} earlier unread ${earlier === 1 ? "message isn't" : "messages aren't"} shown; \`rooms read "${room}" --last 40 --vault "${vault}"\` shows them.)` : "",
+    earlier ? `(${earlier} earlier unread ${earlier === 1 ? "message isn't" : "messages aren't"} shown; \`${command} read "${room}" --last 40 --vault "${vault}"${who}\` shows them.)` : "",
     "",
     ...messages.map(shownMessage),
     addressed

@@ -5,15 +5,17 @@
 //   wake(agent, wake)    starts one run for new messages: { ok: true } | { ok: false, busy?: true, error }
 //   check(agent)         what's wrong with an agent's setup, as sentences
 //   open(agent, id)      optional: how to open the session a room's wakes run in, as lines
-//   ask                  what the setup wizard asks for: "folder" or "profiles"
+//   ask                  what the setup wizard asks for: "folder", "profiles", "agent" (an id) or "routine"
 // A new agent is one more file here and one more line below. The desktop apps are setups only (`alias`): their
 // agents are registered as the command-line kind that wakes them.
 
 import claudeCode from "./claude-code.js";
 import codex from "./codex.js";
 import { claudeDesktop, codexDesktop } from "./desktop.js";
+import grokBot from "./grok-bot.js";
 import hermes from "./hermes.js";
+import openclaw from "./openclaw.js";
 
-export const KINDS = Object.fromEntries([claudeCode, claudeDesktop, codex, codexDesktop, hermes].map((m) => [m.kind, m]));
+export const KINDS = Object.fromEntries([claudeCode, claudeDesktop, codex, codexDesktop, hermes, openclaw, grokBot].map((m) => [m.kind, m]));
 
 export const moduleFor = (agent) => KINDS[agent.kind] ?? null;

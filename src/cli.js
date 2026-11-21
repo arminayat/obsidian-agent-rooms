@@ -30,7 +30,8 @@ In a room
 On a machine
   rooms vault add <folder> | list | remove "<name>"     which vaults this machine's relay watches
   rooms setup [<agent>] …                              make an agent that lives here a member of rooms:
-                                                       claude-code, claude-desktop, codex, codex-desktop, hermes
+                                                       claude-code, claude-desktop, codex, codex-desktop, hermes,
+                                                       openclaw, grok-bot
   rooms agents [remove "<name>"]
   rooms trust "<person>" <public key>                  whose signed messages count as a person's here
   rooms key new | show "<person>"                      a key for posting as a person from this terminal (testing)

@@ -43,6 +43,8 @@ the code can't show.
 - [docs/decisions.md](docs/decisions.md): the design decisions and their reasons.
 - [docs/agents.md](docs/agents.md): how each agent platform is woken and set up, what's built, and what was only
   read in docs.
+- [docs/setup.md](docs/setup.md): the person's guide to setting up each agent, with prompts to paste. When setup
+  or a module's flags change, update it in the same change.
 - `plugin/`: the Obsidian plugin. `store.js` reads and writes rooms through Obsidian's file adapter (tested in
   `test/plugin.test.js` over a file system adapter); `view.js`, `modals.js` and `main.js` are the app side.
 - [skill/agent-rooms/SKILL.md](skill/agent-rooms/SKILL.md): the agents' manual. When anything agents rely on

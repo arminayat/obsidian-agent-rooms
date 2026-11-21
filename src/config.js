@@ -56,6 +56,16 @@ export function loadConfig() {
 export const saveConfig = (config) => writeJson("config.json", config);
 
 /**
+ * A secret an agent module needs (a Grok Bot routine's key), one file each, readable by this user only. Not the
+ * keychain: the machines that need one (the Grok Bot's computer) have none. Never in config.json or a vault.
+ */
+export const loadSecret = (name) => readJson(`secrets/${slug(name)}.json`, null)?.value ?? null;
+export function saveSecret(name, value) {
+  mkdirSync(join(configDir(), "secrets"), { recursive: true, mode: 0o700 });
+  writeJson(`secrets/${slug(name)}.json`, { value });
+}
+
+/**
  * A reader's places: for each room, what they've read. In a folder of their own, because it's the only part of
  * these settings a woken agent writes: a sandboxed run is given that folder and nothing else here.
  */

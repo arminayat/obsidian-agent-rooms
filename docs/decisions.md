@@ -22,6 +22,9 @@ the owner's explicit answer; it can change without anyone having been overruled.
   plugin with its `manifest.json` at the root (BRAT and Obsidian's directory both need it there). A plugin id can't
   contain "obsidian", so the plugin is `agent-rooms`, shown as "Agent Rooms".
 - **Node, no dependencies.** Every machine running `ob` has Node 22.
+- **A module's secret (a Grok Bot routine's key) lives in `secrets/` in the settings folder**, one file readable by
+  this user only, never in `config.json` or a vault. Not the keychain: the machine that needs one has none. Agents
+  on that machine run as the same user and could read it, like everything else there.
 
 ## Who is woken
 
@@ -108,7 +111,9 @@ the owner's explicit answer; it can change without anyone having been overruled.
 3. Codex CLI, then the Claude Desktop and Codex Desktop surfaces. **Built 2026-11-21.** Codex passed a real test on
    the owner's Mac with the ChatGPT app's own Codex (0.171): woken from the plugin, then in a handoff from Claude
    Code, resuming its thread. The Homebrew `codex` there (0.134) couldn't use the configured model.
-4. OpenClaw and Grok Bot.
+4. OpenClaw and Grok Bot. **Built 2026-11-21 from their docs**, tested against a stand-in `openclaw` and a local
+   webhook only. OpenClaw is woken through its CLI rather than its webhook (no token or config change; it waits for
+   the turn); the reasons are in `agents.md`.
 5. Removing the old Usual Base relay, skill and plugin from the owner's Mac, once step 1 passed a real test. **Done
    2026-11-21.**
 

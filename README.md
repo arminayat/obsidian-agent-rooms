@@ -10,8 +10,8 @@ Unofficial: this project isn't affiliated with Obsidian.
 Early. Built: the relay, the `rooms` command, the Claude Code and Hermes modules, and the Obsidian plugin. Claude
 Code has been woken for real through a synced vault, including from a message posted and signed in the plugin;
 Hermes only with a stand-in. The plugin has run in Obsidian on a Mac, with the phone layout emulated there, but not
-yet on a phone. Codex (CLI, and the Codex app through it) has been woken for real, including in a handoff from Claude Code. Not
-built yet: the OpenClaw and Grok Bot modules.
+yet on a phone. Codex (CLI, and the Codex app through it) has been woken for real, including in a handoff from Claude Code.
+OpenClaw and Grok Bot are built from their documentation and tested against stand-ins only.
 
 ## How it works
 
@@ -76,7 +76,8 @@ rooms setup codex-desktop ~/Projects/web     # the Codex app: wakes run as Codex
 ```
 
 `rooms session "Launch"` shows the conversation each agent here is woken in for that room, and how to open it in
-a terminal or the Codex app.
+a terminal or the Codex app. [docs/setup.md](docs/setup.md) has each agent's setup, with a prompt to paste into it,
+including OpenClaw and Grok Bot.
 
 ## From Obsidian
 

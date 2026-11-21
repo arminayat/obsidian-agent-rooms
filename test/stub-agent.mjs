@@ -9,7 +9,7 @@ import { join } from "node:path";
 const dir = process.env.STUB_DIR;
 const name = process.env.AGENT_ROOMS_NAME;
 const args = process.argv.slice(2);
-const stdin = args.includes("--query-file") ? readFileSync(0, "utf8") : "";
+const stdin = args.includes("--query-file") ? readFileSync(0, "utf8") : args.includes("--message-file") ? readFileSync(args[args.indexOf("--message-file") + 1], "utf8") : "";
 appendFileSync(join(dir, "runs.jsonl"), JSON.stringify({ name, args, cwd: process.cwd(), stdin, relay: process.env.AGENT_ROOMS_RELAY }) + "\n");
 
 const file = join(dir, "behaviour.json");
