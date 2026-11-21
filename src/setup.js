@@ -6,12 +6,13 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { saveConfig } from "./config.js";
+import { readJson, saveConfig } from "./config.js";
 import { createKey, fail, listFlag, readKey, shown, vaultFor } from "./core.js";
 import { sameName } from "./format.js";
 import { KINDS, moduleFor } from "./agents/index.js";
+import { agentKey } from "./relay.js";
 import { relayStatus } from "./service.js";
-import { addMember, findRoom, isPaused, members, roomNames, roomsDir } from "./vault.js";
+import { addMember, findRoom, isPaused, members, placeKey, roomNames, roomsDir } from "./vault.js";
 
 const TRUST_NOTE = {
   scoped: "Woken runs are scoped: they may work in the agent's folder and the vault, within what that tool allows unattended.",
@@ -69,7 +70,7 @@ async function wizard(config, flags) {
     const module = kinds[Number(await ask("Which one?", "1")) - 1] ?? fail("That isn't one of the numbers.");
     const args = [];
     const answers = { ...flags };
-    if (module.kind === "claude-code") args.push(await ask("Its project folder (a code project, or a vault):", process.cwd()));
+    if (module.ask === "folder") args.push(await ask("Its folder (a code project, or a vault):", process.cwd()));
     else args.push(...(await ask('Which Hermes profiles, separated by spaces ("default" is the one without a name):', "default")).split(/\s+/));
     if (args.length === 1) {
       const name = await ask("Its name in rooms (empty for the usual one):");
@@ -100,6 +101,24 @@ export function agents(config, args) {
   if (action) fail('rooms agents [remove "<name>"]');
   if (!config.agents.length) return console.log("No agents are set up on this machine. `rooms setup` adds one.");
   for (const agent of config.agents) console.log(`${agent.name}  ·  ${moduleFor(agent)?.label ?? agent.kind}  ·  ${shown(agent.folder)}  ·  ${agent.trust}${agent.wake === false ? "  ·  not woken" : ""}`);
+}
+
+/** The session or thread each agent here is woken in for a room, and how to open it: in a terminal or an app. */
+export function session(config, args, flags) {
+  const vault = vaultFor(config, flags);
+  const name = args.join(" ").trim() || fail('rooms session "<room>" [--as "<agent>"]');
+  const room = findRoom(vault, name) ?? fail(`No room called ${name}.`);
+  const state = readJson("relay.json", { agents: {} });
+  const chosen = typeof flags.as === "string" ? config.agents.filter((agent) => sameName(agent.name, flags.as)) : config.agents;
+  let shownAny = false;
+  for (const agent of chosen) {
+    const id = state.agents?.[agentKey(agent)]?.rooms?.[placeKey(vault, room)]?.session?.id;
+    if (!id) continue;
+    shownAny = true;
+    console.log(`${agent.name}: ${id}`);
+    for (const line of moduleFor(agent)?.open?.(agent, id) ?? []) console.log(`  ${line}`);
+  }
+  if (!shownAny) console.log(`No agent on this machine has a session in ${room} yet; one starts at its first wake there.`);
 }
 
 // --- Vaults ------------------------------------------------------------------------------------------------

@@ -7,7 +7,7 @@ import { loadConfig } from "./config.js";
 import { Failure, fail, parseArgs } from "./core.js";
 import { runRelay } from "./relay.js";
 import { installRelay, relayStatus, uninstallRelay } from "./service.js";
-import { agents, doctor, key, setup, status, trust, vault } from "./setup.js";
+import { agents, doctor, key, session, setup, status, trust, vault } from "./setup.js";
 import { packageRoot } from "./agents/shared.js";
 
 const USAGE = `rooms: conversations between you and your agents, kept as files in an Obsidian vault.
@@ -29,13 +29,18 @@ In a room
 
 On a machine
   rooms vault add <folder> | list | remove "<name>"     which vaults this machine's relay watches
-  rooms setup [claude-code | hermes] …                 make an agent that lives here a member of rooms
+  rooms setup [<agent>] …                              make an agent that lives here a member of rooms:
+                                                       claude-code, claude-desktop, codex, codex-desktop, hermes
   rooms agents [remove "<name>"]
   rooms trust "<person>" <public key>                  whose signed messages count as a person's here
   rooms key new | show "<person>"                      a key for posting as a person from this terminal (testing)
   rooms relay [install | uninstall | status]           the relay; without an action it runs here
+  rooms session "<room>" [--as "<agent>"]             the conversation an agent is woken in, and how to open it
   rooms status | doctor
 `;
+
+/** Commands that change the machine's setup rather than a room. */
+const MACHINE = new Set(["setup", "agents", "vault", "trust", "key", "relay"]);
 
 export async function main(argv) {
   const [command, ...rest] = argv;
@@ -44,6 +49,10 @@ export async function main(argv) {
   if (command === "--version" || command === "version") return console.log(JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")).version);
   const config = loadConfig();
   if (roomCommands[command]) return roomCommands[command](config, args, flags);
+  // Inside a wake, an agent could otherwise trust a key of its own and sign as a person, or change who is woken.
+  if (process.env.AGENT_ROOMS_RELAY && MACHINE.has(command) && !(command === "relay" && args[0] === "status")) {
+    fail(`\`rooms ${command}\` changes this machine's setup, which only its person does, not a woken agent. Ask in the room instead.`);
+  }
   switch (command) {
     case "setup": return setup(config, args, flags);
     case "agents": return agents(config, args);
@@ -52,6 +61,7 @@ export async function main(argv) {
     case "key": return key(config, args);
     case "status": return status(config);
     case "doctor": return doctor(config);
+    case "session": return session(config, args, flags);
     case "relay": {
       const [action] = args;
       if (action === "install") return installRelay(flags);

@@ -27,35 +27,39 @@ its docs. "Docs only" means nobody has run it.
 - **Not verified:** a real Hermes turn. The owner's Bots run on a Linux server (each profile's gateway is a
   systemd user service; lingering is on), where the relay would run as a user service beside `ob sync`.
 
+### Codex CLI (`src/agents/codex.js`)
+
+- **Wake:** `codex exec --json --skip-git-repo-check <sandbox> "<text>"` in the agent's folder; the first event,
+  `thread.started`, names the thread. Later: `codex exec resume --json --skip-git-repo-check <sandbox> <id>
+  "<text>"`. `resume` takes no `--sandbox`, `--add-dir` or `-C`, so the sandbox is `-c sandbox_mode=
+  "workspace-write"` and `-c sandbox_workspace_write.writable_roots=[vault, readers folder]`, which both accept.
+  Full trust: `--dangerously-bypass-approvals-and-sandbox`. `exec` never asks for approval.
+- **Output:** standard output is JSON events (the agent's words go to the relay log); standard error is Codex's
+  own log, kept out of it. An API error arrives as JSON inside the event's message and is unwrapped.
+- **Skill:** `~/.agents/skills/agent-rooms/`. Nothing is added to `~/.codex/AGENTS.md` or its hooks.
+- **Verified 2026-11-21** on the owner's Mac with codex-cli 0.171.0-alpha.13 (the ChatGPT app's): a first wake
+  from the plugin, then a resumed thread in a handoff from Claude Code. The sandboxed run wrote its reply into the
+  vault and its place into `readers/`. Wakes start every MCP server in the owner's `~/.codex/config.toml`, which
+  costs a few seconds and logs auth errors for those without a sign-in.
+- **Trap:** an older `codex` than the account's model needs fails with `model_not_found` (0.134 against
+  its configured model). `--command <path>` at setup picks the binary.
+
+### The desktop apps (`src/agents/desktop.js`)
+
+- **Neither takes a prompt from outside.** `claude://` and `codex://threads/new?prompt=` only fill in the box;
+  scheduled tasks are schedule-only; Claude's Chat and Cowork tabs have no trigger at all.
+- **So they're setups:** `setup claude-desktop` registers Claude Code in that folder, `setup codex-desktop` Codex
+  with the app's own binary (`/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex`).
+- **Opening the conversation:** `rooms session "<room>"`. Codex: `codex://threads/<id>` (from the docs; not
+  clicked), and the thread's folder has to be a project in the app. Claude: `claude --resume <id>` in a terminal,
+  since `-p` sessions stay out of the app's picker.
+- **Trap:** a thread the Codex app has loaded holds a writer lock; a headless `resume` then fails with "already
+  has an active writer" (openai/codex issue 37403). The module reports it as busy, so the relay waits a minute
+  and tries again without counting a failure. Not seen for real.
+- **Not built:** a notice in an open desktop session. Candidates: an `asyncRewake` hook (documented to wake an
+  idle Claude session on exit 2) or a plugin monitor; both untested inside the apps.
+
 ## Not built
-
-### Claude Desktop
-
-- Its Code tab runs its own copy of Claude Code; each desktop session records a `cliSessionId`. Personal skills
-  and plugins load there as in the CLI.
-- **Nothing pushes a prompt in.** `claude://` links only prefill. Scheduled tasks are schedule-only and need the
-  app open. The Chat and Cowork tabs have no trigger at all.
-- **Plan:** the Claude Code wake does the work; the app's `/resume` picker lists CLI sessions, so the conversation
-  can be opened there. For an open session: an `asyncRewake` hook (documented to wake an idle session on exit 2)
-  or a plugin monitor, once tested inside the app.
-
-### Codex CLI
-
-- **Wake:** `codex exec --json -C <folder> --sandbox workspace-write --add-dir <vault> "<text>"`, reading
-  `thread_id` from the `thread.started` event; then `codex exec resume <thread id> "<text>"`. Flags present in
-  codex-cli 0.134. `exec` defaults to a read-only sandbox and never asks for approval.
-- **Skill:** `~/.agents/skills/`; standing instructions in `~/.codex/AGENTS.md`; hooks in `~/.codex/hooks.json`
-  (must be reviewed and trusted once).
-- **Not verified:** whether `--sandbox` and `--add-dir` are accepted after `resume`; `writable_roots` in
-  `config.toml` is the fallback.
-
-### Codex Desktop (inside ChatGPT.app)
-
-- Shares `~/.codex` with the CLI. **Nothing pushes a turn in:** `codex://threads/new?prompt=` only prefills, the
-  app doesn't share the app-server daemon, and scheduled tasks are schedule-only.
-- `codex://threads/<id>` opens a thread; the thread's folder has to be a project in the app.
-- **Trap:** a thread the app has loaded holds a writer lock, and a headless `resume` then fails with "already has
-  an active writer" (openai/codex issue 37403, open). The module should report that as busy, so the relay retries.
 
 ### OpenClaw (docs only; not installed on the owner's Mac)
 

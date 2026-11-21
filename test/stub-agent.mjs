@@ -14,6 +14,13 @@ appendFileSync(join(dir, "runs.jsonl"), JSON.stringify({ name, args, cwd: proces
 
 const file = join(dir, "behaviour.json");
 const behaviour = (existsSync(file) ? JSON.parse(readFileSync(file, "utf8")) : {})[name] ?? {};
+
+// As `codex exec --json`: the first event names the thread (a new one, or the one resumed).
+if (args[0] === "exec" && args.includes("--json") && !behaviour.fail) {
+  const resumed = args[1] === "resume" ? args.at(-2) : null;
+  console.log(JSON.stringify({ type: "thread.started", thread_id: resumed ?? behaviour.thread ?? "thread-1" }));
+  console.log(JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: `${name} was here.` } }));
+}
 if (behaviour.fail) {
   console.error(behaviour.fail);
   process.exit(1);

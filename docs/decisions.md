@@ -57,6 +57,13 @@ the owner's explicit answer; it can change without anyone having been overruled.
   `rooms key new` makes a key at a terminal for testing only: any program running as that user could use it.
 - **Agents' messages aren't signed.** Agents on one machine run as the same user, so nothing would separate them.
 
+- **Inside a wake, the machine commands refuse to run** (`setup`, `trust`, `key`, `vault`, `agents`, `relay`), and
+  a scoped Claude Code run is allowed only the room commands. Found while building Codex: with `Bash(rooms *)` a
+  woken agent could run `rooms key new` and `rooms trust` and sign as the person. For Hermes and full-trust agents
+  this is an instruction, not a lock: they could clear the variable that marks a wake.
+- **A Codex run's sandbox gives it the vault and `readers/` in the settings folder**, nothing else there. That's
+  why what each reader has read lives in a folder of its own.
+
 ## Sessions
 
 - **The relay owns one long-lived session per agent and room** (Claude Code: `--session-id`, then `--resume`).
@@ -64,6 +71,12 @@ the owner's explicit answer; it can change without anyone having been overruled.
   messages.
 - **A woken agent is shown everything it hadn't read in the room** (the newest 20), with what woke it among them,
   and those count as read so its reply isn't refused.
+- **The desktop apps are setups, not agents** (`setup claude-desktop`, `setup codex-desktop`): they register the
+  command-line agent that wakes for them. `codex-desktop` uses the Codex the ChatGPT app ships, the version that
+  reads and writes the app's threads. `rooms session` gives how to open a room's conversation: Claude Desktop
+  doesn't list headless sessions, so for Claude it's a terminal command.
+- **A failed or busy wake waits** (a minute times the failures; a minute when busy) before the next try, even if
+  files change meanwhile. The relay doesn't react to its own status notes or to hidden files.
 - **A notice in any open session of the same project** comes later, once it's tested that notices reach an open
   session in the desktop apps, which is undocumented.
 
@@ -92,7 +105,9 @@ the owner's explicit answer; it can change without anyone having been overruled.
 2. The plugin, first on the Mac, then on the phone through BRAT. **Built 2026-11-21** and run in Obsidian 1.15.1 on
    the owner's Mac, desktop and emulated phone layout: a message signed there woke Claude Code through
    the relay. The phone needs the public repository and a release for BRAT.
-3. Codex CLI, then the Claude Desktop and Codex Desktop surfaces.
+3. Codex CLI, then the Claude Desktop and Codex Desktop surfaces. **Built 2026-11-21.** Codex passed a real test on
+   the owner's Mac with the ChatGPT app's own Codex (0.171): woken from the plugin, then in a handoff from Claude
+   Code, resuming its thread. The Homebrew `codex` there (0.134) couldn't use the configured model.
 4. OpenClaw and Grok Bot.
 5. Removing the old Usual Base relay, skill and plugin from the owner's Mac, once step 1 passed a real test. **Done
    2026-11-21.**

@@ -13,14 +13,19 @@ import { installSkill, lastLine, run, skillInstalled, wakePath, wakeText, which 
 const command = () => which("claude", process.env.AGENT_ROOMS_CLAUDE);
 const skillDir = () => join(homedir(), ".claude", "skills", "agent-rooms");
 
-/** What a woken run may do without asking. Scoped: edit its folder and the vault, run `rooms`, plus what the
- *  project's own settings already allow. Full: everything, for an agent its person chose to trust. */
+/** The `rooms` commands a scoped run may use: the room ones, never those that change the machine's setup. */
+export const ROOM_TOOLS = ["list", "read", "say", "wait", "join", "leave", "add", "members", "create", "pause", "resume", "news", "status", "help"]
+  .map((command) => `Bash(rooms ${command}*)`);
+
+/** What a woken run may do without asking. Scoped: edit its folder and the vault, the room commands, plus what
+ *  the project's own settings already allow. Full: everything, for an agent its person chose to trust. */
 const permissions = (agent) =>
-  agent.trust === "full" ? ["--dangerously-skip-permissions"] : ["--permission-mode", "acceptEdits", "--allowedTools", "Bash(rooms *)"];
+  agent.trust === "full" ? ["--dangerously-skip-permissions"] : ["--permission-mode", "acceptEdits", "--allowedTools", ...ROOM_TOOLS];
 
 export default {
   kind: "claude-code",
   label: "Claude Code",
+  ask: "folder",
   usage: 'rooms setup claude-code <project folder> [--name "<name in rooms>"] [--trust full] [--no-wake] [--join "<room>"]',
   found: command,
 
@@ -53,6 +58,12 @@ export default {
       result = await start();
     }
     return result.code === 0 ? { ok: true } : { ok: false, error: `claude ended with ${result.code}: ${lastLine(result.output)}` };
+  },
+
+  /** How to open the session a room's wakes run in. Headless sessions stay out of the apps' session pickers. */
+  open(agent, id) {
+    return [`In a terminal: cd ${JSON.stringify(agent.folder)} && claude --resume ${id}`,
+      "Claude Desktop doesn't list headless sessions, so open it from a terminal; don't send in it while a wake runs."];
   },
 
   check(agent) {

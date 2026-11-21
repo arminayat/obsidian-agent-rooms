@@ -3,72 +3,12 @@
 // a real agent or the network.
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
 import { MESSAGE_FILE, messageText, parseMessage } from "../src/format.js";
-
-const here = dirname(fileURLToPath(import.meta.url));
-const bin = join(here, "..", "bin", "rooms");
-const stub = join(here, "stub-agent.mjs");
-
-/** A machine in a box: a vault, a project, a Hermes home, and settings of its own. */
-function box() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "agent-rooms-")));
-  const b = { root, home: join(root, "home"), config: join(root, "config"), vault: join(root, "Vault"), project: join(root, "api"), hermes: join(root, "hermes"), stub: join(root, "stub") };
-  for (const dir of Object.values(b)) mkdirSync(dir, { recursive: true });
-  const env = { PATH: process.env.PATH, HOME: b.home, AGENT_ROOMS_HOME: b.config, AGENT_ROOMS_CLAUDE: stub, AGENT_ROOMS_HERMES: stub, AGENT_ROOMS_HERMES_HOME: b.hermes, STUB_DIR: b.stub };
-  writeFileSync(join(b.config, "config.json"), JSON.stringify({ machine: "testbox" }));
-  b.rooms = (args, { as, cwd = root } = {}) => {
-    const result = spawnSync(process.execPath, [bin, ...args, ...(as ? ["--as", as] : [])], { env, cwd, encoding: "utf8" });
-    return { code: result.status, out: result.stdout, err: result.stderr, all: result.stdout + result.stderr };
-  };
-  b.ok = (args, options) => {
-    const result = b.rooms(args, options);
-    assert.equal(result.code, 0, `rooms ${args.join(" ")}\n${result.all}`);
-    return result;
-  };
-  /** Posts without the read-first check, which has its own test. Returns the message's file name. */
-  b.say = (as, text, extra = []) => b.ok(["say", "Launch", text, "--anyway", ...extra], { as }).out.match(/Posted to Launch: \S+\/(\S+)/)[1];
-  b.relay = () => b.ok(["relay", "--once"]).out;
-  /** How the stand-ins were started since the last call. */
-  b.runs = () => {
-    const file = join(b.stub, "runs.jsonl");
-    const runs = existsSync(file) ? readFileSync(file, "utf8").trim().split("\n").map((line) => JSON.parse(line)) : [];
-    rmSync(file, { force: true });
-    return runs;
-  };
-  b.behave = (behaviour) => writeFileSync(join(b.stub, "behaviour.json"), JSON.stringify(behaviour));
-  b.settings = (change) => {
-    const file = join(b.config, "config.json");
-    writeFileSync(file, JSON.stringify({ ...JSON.parse(readFileSync(file, "utf8")), ...change }));
-  };
-  b.room = join(b.vault, "Rooms", "Launch");
-  b.messages = () => readdirSync(b.room).filter((d) => /^\d{4}-/.test(d)).sort().flatMap((day) => readdirSync(join(b.room, day)).filter((f) => MESSAGE_FILE.test(f)).sort()
-    .map((file) => parseMessage(readFileSync(join(b.room, day, file), "utf8"), file)));
-  return b;
-}
-
-/** A room with a person whose key this machine trusts, a Claude Code agent and a Hermes Bot; the relay has looked once. */
-function scene() {
-  const b = box();
-  b.ok(["vault", "add", b.vault]);
-  b.ok(["create", "Launch", "--about", "Getting 1.0 out"]);
-  const key = b.ok(["key", "new", "Armin"]).out.split("\n").find((line) => /^[A-Za-z0-9_-]{80,100}$/.test(line));
-  b.ok(["trust", "Armin", key]);
-  b.ok(["join", "Launch", "--person"], { as: "Armin" });
-  b.ok(["setup", "claude-code", b.project, "--name", "Claude", "--join", "Launch"]);
-  b.ok(["setup", "hermes", "--join", "Launch"]);
-  b.relay();
-  assert.deepEqual(b.runs(), []);
-  return b;
-}
-
-const names = (runs) => runs.map((run) => run.name).sort();
-const prompt = (run) => (run.args.includes("-p") ? run.args[run.args.indexOf("-p") + 1] : run.stdin);
+import { ROOM_TOOLS } from "../src/agents/claude-code.js";
+import { box, names, prompt, scene } from "./helpers.js";
 
 test("the room commands", () => {
   const b = scene();
@@ -156,7 +96,8 @@ test("a person's message wakes every agent, once, in a session the relay keeps",
   const session = claude.args[claude.args.indexOf("--session-id") + 1];
   assert.match(session, /^[0-9a-f-]{36}$/);
   assert.equal(claude.args[claude.args.indexOf("--add-dir") + 1], b.vault);
-  assert.deepEqual(claude.args.slice(-4), ["--permission-mode", "acceptEdits", "--allowedTools", "Bash(rooms *)"], "scoped unless trusted fully");
+  assert.deepEqual(claude.args.slice(-3 - ROOM_TOOLS.length), ["--permission-mode", "acceptEdits", "--allowedTools", ...ROOM_TOOLS], "scoped unless trusted fully");
+  assert.ok(!claude.args.some((arg) => /rooms (trust|key|setup|vault|agents|relay)|rooms \*/.test(arg)), "never the commands that change the machine");
 
   const hermes = runs.find((run) => run.name === "Hermes");
   assert.deepEqual(hermes.args, ["chat", "--in", b.home, "-c", "Bot Chat", "--create-if-missing", "-Q", "--query-file", "-"]);
@@ -307,7 +248,7 @@ test("setup, trust levels and looking at a machine", () => {
   mkdirSync(other);
   assert.match(b.rooms(["setup", "claude-code", other, "--name", "hermes"]).err, /already the name of another agent on this machine/);
   assert.match(b.rooms(["setup", "claude-code", join(b.root, "missing")]).err, /doesn't exist/);
-  assert.match(b.rooms(["setup", "codex"]).err, /one of: claude-code, hermes/);
+  assert.match(b.rooms(["setup", "grok"]).err, /one of: claude-code, claude-desktop, codex, codex-desktop, hermes/);
 
   b.ok(["setup", "claude-code", b.project, "--name", "Claude", "--trust", "full"]);
   b.ok(["setup", "hermes", "--trust", "full"]);

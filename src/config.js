@@ -4,7 +4,7 @@
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir, hostname } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { slug } from "./format.js";
 
 export const configDir = () =>
@@ -18,12 +18,13 @@ export function readJson(name, fallback) {
   }
 }
 
-/** Writes through a temporary file, so a reader never sees half of it. */
+/** Writes through a temporary file beside it, so a reader never sees half of it. */
 export function writeJson(name, value) {
-  mkdirSync(configDir(), { recursive: true });
-  const temp = join(configDir(), `.${name}.${process.pid}.tmp`);
+  const target = join(configDir(), name);
+  mkdirSync(dirname(target), { recursive: true });
+  const temp = join(dirname(target), `.${basename(target)}.${process.pid}.tmp`);
   writeFileSync(temp, JSON.stringify(value, null, 2) + "\n", { mode: 0o600 });
-  renameSync(temp, join(configDir(), name));
+  renameSync(temp, target);
 }
 
 /** Wakes per agent an hour and a day; agent messages in a row before a room pauses; how old a message may be. */
@@ -54,6 +55,10 @@ export function loadConfig() {
 
 export const saveConfig = (config) => writeJson("config.json", config);
 
-/** A reader's places: for each room, what they've read. */
-export const loadPlaces = (reader) => readJson(`reader-${slug(reader)}.json`, {});
-export const savePlaces = (reader, places) => writeJson(`reader-${slug(reader)}.json`, places);
+/**
+ * A reader's places: for each room, what they've read. In a folder of their own, because it's the only part of
+ * these settings a woken agent writes: a sandboxed run is given that folder and nothing else here.
+ */
+export const readersDir = () => join(configDir(), "readers");
+export const loadPlaces = (reader) => readJson(`readers/${slug(reader)}.json`, null) ?? readJson(`reader-${slug(reader)}.json`, {});
+export const savePlaces = (reader, places) => writeJson(`readers/${slug(reader)}.json`, places);

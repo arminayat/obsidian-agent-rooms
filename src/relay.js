@@ -19,6 +19,8 @@ import { isPaused, markRead, members, messageFiles, notIn, placeKey, placeOf, po
 
 const SHOWN_AT_MOST = 20;
 const GIVE_UP_AFTER = 3;
+/** How long a failed or busy wake waits before the next try: this, times the failures so far. */
+const RETRY_MS = Number(process.env.AGENT_ROOMS_RETRY_SECONDS ?? "60") * 1000;
 const HOUR = 3_600_000;
 const version = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")).version;
 
@@ -52,6 +54,7 @@ export async function runRelay({ once = false } = {}) {
     }
     const pending = new Set(notIn(roomState.place, paths));
     if (!pending.size) return;
+    if (roomState.retryAt && Date.now() < roomState.retryAt) return; // a failed wake is waiting out its pause
 
     const tail = new Set(paths.slice(-(config.limits.brakeAfter + 10)));
     const recent = await loaded(config, vault, room, paths.filter((path) => tail.has(path) || pending.has(path)));
@@ -116,6 +119,7 @@ export async function runRelay({ once = false } = {}) {
       running.delete(key);
       if (result.ok) {
         roomState.failures = 0;
+        roomState.retryAt = 0;
         roomState.noticed = false;
         record.last = { at: Date.now(), room, result: "woken" };
         log(`${agent.name}: ${room}: finished`);
@@ -126,10 +130,13 @@ export async function runRelay({ once = false } = {}) {
         record.last = { at: Date.now(), room, result: result.busy ? "busy; trying again" : `failed: ${result.error}` };
         log(`${agent.name}: ${room}: ${result.busy ? "busy" : `failed (${result.error})`}; ${retry ? "will try again" : "gave up"}`);
         if (retry) {
-          const back = new Set(triggers.map((m) => m.file)); // pending again, so the next look finds them
+          const back = new Set(triggers.map((m) => m.file)); // pending again, so a look after the pause finds them
           roomState.place.seen = roomState.place.seen.filter((file) => !back.has(file));
-          if (!once) setTimeout(scanAll, result.busy ? 60_000 : roomState.failures * 60_000).unref();
+          const pause = result.busy ? RETRY_MS : roomState.failures * RETRY_MS;
+          roomState.retryAt = Date.now() + pause;
+          if (!once) setTimeout(scanAll, pause + 100).unref();
         } else if (!roomState.noticed) {
+          roomState.retryAt = 0;
           roomState.noticed = true;
           roomState.failures = 0;
           await post(vault, room, { from: `Relay on ${config.machine}`, notice: true },
@@ -214,7 +221,8 @@ export async function runRelay({ once = false } = {}) {
     for (const { path } of config.vaults) {
       if (watchers.has(path) || !existsSync(roomsDir(path))) continue;
       try {
-        const watcher = watch(roomsDir(path), { recursive: true }, soon);
+        // Not for the status notes this relay writes, nor for hidden files half-way to being a message.
+        const watcher = watch(roomsDir(path), { recursive: true }, (event, file) => !/^_status|(^|[\\/])\./.test(String(file ?? "")) && soon());
         watcher.on("error", () => {
           watcher.close();
           watchers.delete(path);

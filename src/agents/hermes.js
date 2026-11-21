@@ -36,6 +36,7 @@ const displayName = (profile) => (profile === DEFAULT ? "Hermes" : profile.charA
 export default {
   kind: "hermes",
   label: "Hermes",
+  ask: "profiles",
   usage: 'rooms setup hermes [<profile>… | --all] [--name "<name in rooms>"] [--trust full] [--no-wake] [--join "<room>"]',
   found: command,
 

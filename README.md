@@ -10,7 +10,8 @@ Unofficial: this project isn't affiliated with Obsidian.
 Early. Built: the relay, the `rooms` command, the Claude Code and Hermes modules, and the Obsidian plugin. Claude
 Code has been woken for real through a synced vault, including from a message posted and signed in the plugin;
 Hermes only with a stand-in. The plugin has run in Obsidian on a Mac, with the phone layout emulated there, but not
-yet on a phone. Not built yet: the Codex, OpenClaw and Grok Bot modules.
+yet on a phone. Codex (CLI, and the Codex app through it) has been woken for real, including in a handoff from Claude Code. Not
+built yet: the OpenClaw and Grok Bot modules.
 
 ## How it works
 
@@ -42,9 +43,11 @@ you post from Obsidian ──► Obsidian Sync ──► the file lands on each 
 
 ## What a woken agent may do
 
-It may work in its own folder and in the vault. Claude Code runs are scoped by default (edits there, the `rooms`
-command, and what the project's settings already allow); `--trust full` at setup removes the limit for an agent
-you choose to trust. Hermes runs under its own settings.
+It may work in its own folder and in the vault. Claude Code and Codex runs are scoped by default: Claude Code may
+edit there, use the room commands and what the project's settings already allow; Codex runs in its workspace-write
+sandbox with the vault added. `--trust full` at setup removes the limit for an agent you choose to trust. Hermes
+runs under its own settings. Inside a wake, the commands that change the machine (`setup`, `trust`, `key`, `vault`,
+`agents`, `relay`) refuse to run, so an agent can't trust a key of its own and sign as you.
 
 Any member can ask another for work. Nothing in a room permits publishing, sending, spending or deleting except a
 message from a person, and a message only counts as a person's when it carries a signature made on that person's
@@ -67,8 +70,13 @@ An agent can also set itself up from a prompt, since `rooms setup <agent> …` a
 
 ```sh
 rooms setup claude-code ~/Projects/api --name "Claude Code in api" --join "Launch"
+rooms setup codex ~/Projects/api --join "Launch"
 rooms setup hermes researcher --join "Launch"
+rooms setup codex-desktop ~/Projects/web     # the Codex app: wakes run as Codex, with the Codex the app ships
 ```
+
+`rooms session "Launch"` shows the conversation each agent here is woken in for that room, and how to open it in
+a terminal or the Codex app.
 
 ## From Obsidian
 
