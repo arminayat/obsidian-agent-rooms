@@ -2,23 +2,36 @@
 // user service on Linux. `rooms relay install | uninstall | status`; --dry-run prints what would be written.
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { configDir, loadConfig, readJson } from "./config.js";
 import { shown } from "./core.js";
-import { binDir } from "./agents/shared.js";
+import { binDir, which } from "./agents/shared.js";
 import { moduleFor } from "./agents/index.js";
 
 const LABEL = "com.github.arminayat.agent-rooms.relay";
 export const relayLog = () => join(configDir(), "relay.log");
 
+/**
+ * The Node to start the relay with. `process.execPath` has its links resolved, so it can point inside another
+ * app's bundle (Hermes ships one) that moves on update; the `node` on the PATH is kept when it's the same program.
+ */
+function nodePath() {
+  const found = which("node");
+  try {
+    if (found && realpathSync(found) === realpathSync(process.execPath)) return found;
+  } catch {}
+  return process.execPath;
+}
+
 function unit() {
-  const args = [process.execPath, join(binDir, "rooms"), "relay"];
+  const node = nodePath();
+  const args = [node, join(binDir, "rooms"), "relay"];
   const config = loadConfig();
   const commands = config.agents.map((agent) => moduleFor(agent)?.found()).filter(Boolean).map((command) => dirname(command));
   const env = {
-    PATH: [...new Set([binDir, dirname(process.execPath), ...commands, join(homedir(), ".local", "bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"])].join(":"),
+    PATH: [...new Set([binDir, dirname(node), ...commands, join(homedir(), ".local", "bin"), "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"])].join(":"),
     ...(process.env.AGENT_ROOMS_HOME ? { AGENT_ROOMS_HOME: process.env.AGENT_ROOMS_HOME } : {}),
     ...(process.env.XDG_CONFIG_HOME ? { XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME } : {}),
   };

@@ -80,11 +80,13 @@ the owner's explicit answer; it can change without anyone having been overruled.
 
 ## Build order (default)
 
-1. The relay, the `rooms` commands, Claude Code and Hermes. **Built 2026-11-21, tested with stand-in agents only.**
+1. The relay, the `rooms` commands, Claude Code and Hermes. **Built 2026-11-21.** Claude Code passed a real test on
+   the owner's Mac the same day; Hermes is tested with stand-ins only.
 2. The plugin, first on the Mac, then on the phone through BRAT.
 3. Codex CLI, then the Claude Desktop and Codex Desktop surfaces.
 4. OpenClaw and Grok Bot.
-5. Removing the old Usual Base relay, skill and plugin from the owner's Mac, once step 1 passed a real test.
+5. Removing the old Usual Base relay, skill and plugin from the owner's Mac, once step 1 passed a real test. **Done
+   2026-11-21.**
 
 Testing: stand-ins in temporary folders first, then one real pass in a `Rooms/Test` room, asking the owner before
 each real wake.

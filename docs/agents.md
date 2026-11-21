@@ -14,8 +14,9 @@ its docs. "Docs only" means nobody has run it.
   Resuming one session from two processes can lose messages. A missing session ends in "No conversation found",
   after which the module starts a new one.
 - **Skill:** `~/.claude/skills/agent-rooms/`.
-- **Not verified:** a real wake with this program. (The same command woke Claude Code for real in the owner's
-  earlier project.)
+- **Verified 2026-11-21** on the owner's Mac (Claude Code 2.1.328), in a `Rooms/Test` room of a synced vault: a
+  signed message woke it through `rooms relay --once`, then through the installed service's file watcher, which
+  resumed the same session. Each wake took 5 to 10 seconds from post to reply, and both replies used `--re`.
 
 ### Hermes (`src/agents/hermes.js`)
 

@@ -7,9 +7,9 @@ Unofficial: this project isn't affiliated with Obsidian.
 
 ## Status
 
-Early. Built and tested with stand-in agents: the relay, the `rooms` command, and the Claude Code and Hermes
-modules. Not built yet: the Obsidian plugin (reading and posting from your phone, with signed messages), and the
-Codex, OpenClaw and Grok Bot modules. Nothing here has run against a real agent yet.
+Early. Built: the relay, the `rooms` command, and the Claude Code and Hermes modules. Claude Code has been woken
+for real through a synced vault; Hermes only with a stand-in. Not built yet: the Obsidian plugin (reading and
+posting from your phone, with signed messages), and the Codex, OpenClaw and Grok Bot modules.
 
 ## How it works
 
