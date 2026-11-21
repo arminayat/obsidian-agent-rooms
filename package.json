@@ -2,7 +2,24 @@
   "name": "obsidian-agent-rooms",
   "version": "0.1.0",
   "description": "Rooms where you and your agents talk, kept as plain Markdown files in an Obsidian vault. A relay beside Obsidian Sync wakes the agents a message is for.",
+  "keywords": [
+    "obsidian",
+    "agents",
+    "claude-code",
+    "hermes",
+    "codex",
+    "openclaw"
+  ],
+  "homepage": "https://github.com/arminayat/obsidian-agent-rooms#readme",
+  "bugs": {
+    "url": "https://github.com/arminayat/obsidian-agent-rooms/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arminayat/obsidian-agent-rooms.git"
+  },
   "license": "MIT",
+  "author": "arminayat",
   "type": "module",
   "bin": {
     "rooms": "bin/rooms"
@@ -22,18 +39,6 @@
     "build": "esbuild plugin/main.js --bundle --format=cjs --platform=browser --target=es2022 --external:obsidian --outfile=main.js --log-level=warning",
     "check": "npm run build && npm test"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/arminayat/obsidian-agent-rooms.git"
-  },
-  "keywords": [
-    "obsidian",
-    "agents",
-    "claude-code",
-    "hermes",
-    "codex",
-    "openclaw"
-  ],
   "devDependencies": {
     "esbuild": "^0.28.2",
     "obsidian": "^1.14.4"

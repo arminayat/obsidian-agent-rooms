@@ -144,7 +144,7 @@ class AgentRoomsSettings extends PluginSettingTab {
     new Setting(containerEl)
       .setName("Your name in rooms")
       .setDesc("Your messages are posted and signed under this name. In each room you're a member as a person under the same name.")
-      .addText((text) => text.setPlaceholder("Armin").setValue(plugin.settings.name).onChange(async (value) => {
+      .addText((text) => text.setPlaceholder("Your name").setValue(plugin.settings.name).onChange(async (value) => {
         plugin.settings.name = value.trim();
         await plugin.saveSettings();
       }));

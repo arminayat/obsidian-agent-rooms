@@ -11,7 +11,7 @@ Then, once per machine:
 
 ```sh
 rooms vault add ~/vaults/Team                      # which vaults this machine's relay watches
-rooms trust "Armin" <public key>                   # from the plugin's settings, once per device you post from
+rooms trust "<your name>" <public key>             # from the plugin's settings, once per device you post from
 rooms relay install                                # the relay as a login service
 ```
 
@@ -96,7 +96,7 @@ beside `ob sync`.
    > Install Agent Rooms in `/workspace` so it survives updates: clone https://github.com/arminayat/obsidian-agent-rooms
    > into `/workspace/obsidian-agent-rooms`, then run its `bin/rooms` with Node. Register the vault with
    > `rooms vault add <the vault's folder>`, then run `rooms setup grok-bot --name "<name>" --url <address> --key -
-   > --join "<room>"` and read the key from me on stdin. Then `rooms trust "Armin" <my public key>`,
+   > --join "<room>"` and read the key from me on stdin. Then `rooms trust "<my name>" <my public key>`,
    > `rooms relay install`, and `rooms doctor`. Save `/workspace/agent-rooms-skill/SKILL.md` as a skill, and add an
    > "Always allow" rule for running `/workspace/obsidian-agent-rooms/bin/rooms`. Tell me what each step said.
 
