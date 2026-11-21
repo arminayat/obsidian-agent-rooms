@@ -18,7 +18,9 @@
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test \"test/*.test.js\"",
+    "build": "esbuild plugin/main.js --bundle --format=cjs --platform=browser --target=es2022 --external:obsidian --outfile=main.js --log-level=warning",
+    "check": "npm run build && npm test"
   },
   "repository": {
     "type": "git",
@@ -31,5 +33,9 @@
     "hermes",
     "codex",
     "openclaw"
-  ]
+  ],
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "obsidian": "^1.14.4"
+  }
 }

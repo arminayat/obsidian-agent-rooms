@@ -75,14 +75,23 @@ the owner's explicit answer; it can change without anyone having been overruled.
 - **No notifications.** A failed wake shows as a relay notice in the room (after three tries, once) and in a
   status note per machine, `Rooms/_status/<machine>.md`, rewritten on change and hourly (the hourly write is a
   default).
-- **The owner's unread counts sync across devices** (default; not built).
+- **What has been read is kept per device**, in Obsidian's local storage (changed from the "synced" default, not
+  yet put to the owner). Syncing it means the phone and the Mac rewriting one file, which the one-writer-per-file
+  rule exists to avoid.
+- **The plugin's key lives in Obsidian's per-vault local storage**, never in `data.json`, which syncs where plugin
+  settings sync. Each device has its own key, trusted on each relay machine. The other devices' public keys go in
+  the plugin's settings only so that device can show those messages as verified; relays never read them.
+- **The plugin renders messages as Markdown, with `<` outside code shown as written.** Agents write placeholders
+  like `<message>`, which the renderer would otherwise take for HTML and drop.
 - **Only the owner as a person for now** (default); anyone marked `kind: person` with a trusted key counts.
 
 ## Build order (default)
 
 1. The relay, the `rooms` commands, Claude Code and Hermes. **Built 2026-11-21.** Claude Code passed a real test on
    the owner's Mac the same day; Hermes is tested with stand-ins only.
-2. The plugin, first on the Mac, then on the phone through BRAT.
+2. The plugin, first on the Mac, then on the phone through BRAT. **Built 2026-11-21** and run in Obsidian 1.15.1 on
+   the owner's Mac, desktop and emulated phone layout: a message signed there woke Claude Code through
+   the relay. The phone needs the public repository and a release for BRAT.
 3. Codex CLI, then the Claude Desktop and Codex Desktop surfaces.
 4. OpenClaw and Grok Bot.
 5. Removing the old Usual Base relay, skill and plugin from the owner's Mac, once step 1 passed a real test. **Done

@@ -129,6 +129,29 @@ export const messageFileName = (at, writer, random) => `${at.toISOString().repla
 /** The UTC day folder a message file belongs in. */
 export const dayOf = (file) => file.slice(0, 10);
 
+/** The last part of a path: a message's file name from `<day>/<file>`. */
+export const fileOf = (path) => path.slice(path.lastIndexOf("/") + 1);
+
+// --- What a reader has read ----------------------------------------------------------------------------
+// A place is the set of message files a reader has seen in a room, for days from `before` on; earlier days count
+// as read. A set, not "everything up to the newest name", because names follow each writer's clock: a message
+// stamped in the past must still show up as new.
+
+const KEPT_DAYS = 14;
+
+/** The place that covers these messages. */
+export function placeOf(paths, now = Date.now()) {
+  const before = new Date(now - KEPT_DAYS * 86_400_000).toISOString().slice(0, 10);
+  return { before, seen: paths.map(fileOf).filter((file) => dayOf(file) >= before) };
+}
+
+/** The messages a place doesn't cover; all of them if there's no place yet. */
+export function notIn(place, paths) {
+  if (!place) return paths;
+  const seen = new Set(place.seen);
+  return paths.filter((path) => dayOf(fileOf(path)) >= place.before && !seen.has(fileOf(path)));
+}
+
 /** When a message was written, from its `at` or else its file name; NaN if neither says. */
 export function timeOf(message) {
   const at = Date.parse(message.at);

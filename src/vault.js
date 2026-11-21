@@ -4,9 +4,11 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { DAY, MESSAGE_FILE, PAUSED, ROOMS, dayOf, memberFileName, memberText, messageFileName, messageText, parseMember,
+import { DAY, MESSAGE_FILE, PAUSED, ROOMS, dayOf, notIn, placeOf, memberFileName, memberText, messageFileName, messageText, parseMember,
   parseMessage, roomFolderName, roomText, sameName, signedText, slug, timeOf } from "./format.js";
 import { loadPlaces, savePlaces } from "./config.js";
+
+export { notIn, placeOf } from "./format.js";
 
 export const roomsDir = (vault) => join(vault, ROOMS);
 export const roomDir = (vault, room) => join(vault, ROOMS, room);
@@ -110,26 +112,9 @@ export function removeMember(vault, room, name) {
   return true;
 }
 
-// --- What a reader has read --------------------------------------------------------------------------------
-// A place is the set of message files a reader has seen in a room, for days from `before` on; earlier days count
-// as read. A set, not "everything up to the newest name", because names follow each writer's clock: a message
-// stamped in the past must still show up as new.
+// --- What a reader has read (a "place": see placeOf in format.js) -------------------------------------------
 
-const KEPT_DAYS = 14;
 export const placeKey = (vault, room) => `${vault}::${room}`;
-
-/** The place that covers these messages. */
-export function placeOf(paths, now = Date.now()) {
-  const before = new Date(now - KEPT_DAYS * 86_400_000).toISOString().slice(0, 10);
-  return { before, seen: paths.map((path) => basename(path)).filter((file) => dayOf(file) >= before) };
-}
-
-/** The messages a place doesn't cover; all of them if there's no place yet. */
-export function notIn(place, paths) {
-  if (!place) return paths;
-  const seen = new Set(place.seen);
-  return paths.filter((path) => dayOf(basename(path)) >= place.before && !seen.has(basename(path)));
-}
 
 /** What `reader` hasn't read in a room, leaving out their own messages. `fresh` is null if they never read it. */
 export function unread(vault, room, reader) {

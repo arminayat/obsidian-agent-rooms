@@ -1,0 +1,346 @@
+/* Agent Rooms: the rooms view and its dialogs. Obsidian's own variables only, so themes and dark mode apply. */
+
+.agent-rooms {
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.agent-rooms-header {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-3);
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex: none;
+}
+
+.agent-rooms-titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-rooms-header > .agent-rooms-title {
+  flex: 1;
+}
+
+.agent-rooms-title {
+  font-weight: var(--font-semibold);
+  font-size: var(--font-ui-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-rooms-subtitle {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-rooms-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--size-2-1);
+  flex: none;
+}
+
+.agent-rooms-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-1);
+}
+
+.agent-rooms-count {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.agent-rooms-banners:empty {
+  display: none;
+}
+
+.agent-rooms-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  margin: var(--size-4-2) var(--size-4-3) 0;
+  padding: var(--size-4-2) var(--size-4-3);
+  border-radius: var(--radius-m);
+  background: var(--background-modifier-message);
+  font-size: var(--font-ui-small);
+}
+
+.agent-rooms-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--size-4-2) var(--size-4-3);
+}
+
+.agent-rooms-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: var(--size-4-8) var(--size-4-4);
+}
+
+/* The list of rooms */
+
+.agent-rooms-row {
+  padding: var(--size-4-2) var(--size-4-2);
+  border-radius: var(--radius-m);
+  cursor: pointer;
+}
+
+.agent-rooms-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.agent-rooms-row-top {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.agent-rooms-row-name {
+  font-weight: var(--font-semibold);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-rooms-row-about,
+.agent-rooms-row-last {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-rooms-badge {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-radius: var(--radius-l);
+  padding: 0 var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+}
+
+.agent-rooms-paused-icon {
+  color: var(--text-muted);
+  display: inline-flex;
+}
+
+/* Messages */
+
+.agent-rooms-earlier {
+  display: block;
+  margin: 0 auto var(--size-4-3);
+}
+
+.agent-rooms-message {
+  margin: 0 0 var(--size-4-3);
+  padding: var(--size-4-2) var(--size-4-3);
+  border-radius: var(--radius-l);
+  background: var(--background-secondary);
+  max-width: 92%;
+}
+
+.agent-rooms-mine {
+  margin-left: auto;
+  background: var(--background-modifier-hover);
+}
+
+.agent-rooms-notice {
+  background: transparent;
+  border: 1px dashed var(--background-modifier-border);
+  color: var(--text-muted);
+}
+
+.agent-rooms-unverified {
+  border: 1px solid var(--text-warning);
+}
+
+.agent-rooms-message-head {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+}
+
+.agent-rooms-from {
+  font-weight: var(--font-semibold);
+  font-size: var(--font-ui-small);
+  color: var(--text-normal);
+}
+
+.agent-rooms-kind {
+  color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 0 var(--size-2-2);
+}
+
+.agent-rooms-unverified .agent-rooms-kind {
+  color: var(--text-warning);
+  border-color: var(--text-warning);
+}
+
+.agent-rooms-time {
+  color: var(--text-faint);
+  flex: 1;
+}
+
+.agent-rooms-message-head .agent-rooms-icon {
+  opacity: 0;
+  padding: var(--size-2-1);
+}
+
+.agent-rooms-message:hover .agent-rooms-icon,
+.is-mobile .agent-rooms-message-head .agent-rooms-icon {
+  opacity: 1;
+}
+
+.agent-rooms-message-meta {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+}
+
+.agent-rooms-message-meta a {
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.agent-rooms-text {
+  user-select: text;
+  font-size: var(--font-text-size);
+}
+
+.agent-rooms-text > :first-child {
+  margin-top: var(--size-2-2);
+}
+
+.agent-rooms-text > :last-child {
+  margin-bottom: 0;
+}
+
+/* The box to post in */
+
+.agent-rooms-composer {
+  flex: none;
+  border-top: 1px solid var(--background-modifier-border);
+  padding: var(--size-4-2) var(--size-4-3) var(--size-4-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+}
+
+.agent-rooms-re {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.agent-rooms-re.is-hidden,
+.agent-rooms-chips:empty {
+  display: none;
+}
+
+.agent-rooms-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-2-2);
+}
+
+.agent-rooms-chip {
+  font-size: var(--font-ui-smaller);
+  padding: var(--size-2-1) var(--size-4-2);
+  height: auto;
+  border-radius: var(--radius-l);
+}
+
+.agent-rooms-chip.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.agent-rooms-input {
+  width: 100%;
+  resize: vertical;
+  min-height: 3.5em;
+  font-size: var(--font-text-size);
+}
+
+.agent-rooms-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+}
+
+.agent-rooms-wakes {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+/* Settings and dialogs */
+
+.agent-rooms-key {
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+  font-size: var(--font-ui-smaller);
+  padding: var(--size-4-2);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+
+.agent-rooms-keys {
+  width: 100%;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+}
+
+.agent-rooms-relay {
+  margin-bottom: var(--size-4-4);
+}
+
+.agent-rooms-relay-head {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.agent-rooms-relay-machine {
+  font-weight: var(--font-semibold);
+}
+
+.agent-rooms-fresh {
+  color: var(--color-green);
+  display: inline-flex;
+}
+
+.agent-rooms-stale {
+  color: var(--text-warning);
+  display: inline-flex;
+}
+
+.agent-rooms-relay .agent-rooms-banner {
+  margin: var(--size-4-2) 0 0;
+}
+
+.agent-rooms-relays table {
+  font-size: var(--font-ui-smaller);
+}

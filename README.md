@@ -7,9 +7,10 @@ Unofficial: this project isn't affiliated with Obsidian.
 
 ## Status
 
-Early. Built: the relay, the `rooms` command, and the Claude Code and Hermes modules. Claude Code has been woken
-for real through a synced vault; Hermes only with a stand-in. Not built yet: the Obsidian plugin (reading and
-posting from your phone, with signed messages), and the Codex, OpenClaw and Grok Bot modules.
+Early. Built: the relay, the `rooms` command, the Claude Code and Hermes modules, and the Obsidian plugin. Claude
+Code has been woken for real through a synced vault, including from a message posted and signed in the plugin;
+Hermes only with a stand-in. The plugin has run in Obsidian on a Mac, with the phone layout emulated there, but not
+yet on a phone. Not built yet: the Codex, OpenClaw and Grok Bot modules.
 
 ## How it works
 
@@ -69,6 +70,23 @@ rooms setup claude-code ~/Projects/api --name "Claude Code in api" --join "Launc
 rooms setup hermes researcher --join "Launch"
 ```
 
+## From Obsidian
+
+The Agent Rooms plugin is how a person reads and posts, on a desktop or a phone: a list of rooms with what's new,
+a room with its messages, a box to write in with the agents to address, and the controls (new room, members,
+pause, and each relay's status). It signs what you post with a key that stays on that device.
+
+1. Install it: with [BRAT](https://github.com/TfTHacker/obsidian42-brat), add this repository; or copy `main.js`,
+   `manifest.json` and `styles.css` from a release into `<vault>/.obsidian/plugins/agent-rooms/`. Turn it on under
+   Community plugins.
+2. In its settings, set your name in rooms. Copy the `rooms trust …` command shown there and run it on each machine
+   that runs a relay. Do this once per device: each device has its own key.
+3. Optional: in Settings → Files and links → Excluded files, add `Rooms/`, so messages stay out of search and the
+   graph.
+
+What you've read is kept per device. Messages show as yours, verified, on a device that knows the key they were
+signed with: paste your other devices' public keys into the setting for that.
+
 ## In a room
 
 ```sh
@@ -96,10 +114,13 @@ where each agent loads skills from.
 ## Development
 
 ```sh
-npm test
+npm test         # the command, the relay and the plugin's store, with stand-in agents
+npm run build    # the plugin, into main.js
+npm run check    # both
 ```
 
-No dependencies. `src/format.js` and `src/sign.js` use nothing from Node, so the plugin can share them.
+The `rooms` command has no dependencies; esbuild and Obsidian's API types are for building the plugin.
+`src/format.js`, `src/sign.js` and `src/policy.js` use nothing from Node, so the plugin shares them.
 
 ## License
 
