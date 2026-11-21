@@ -9,7 +9,7 @@ Unofficial: this project isn't affiliated with Obsidian.
 
 Early. Built: the relay, the `rooms` command, the Claude Code and Hermes modules, and the Obsidian plugin. Claude
 Code has been woken for real through a synced vault, including from a message posted and signed in the plugin;
-Hermes only with a stand-in. The plugin has run in Obsidian on a Mac, with the phone layout emulated there, but not
+Hermes too, on a Linux server. The plugin has run in Obsidian on a Mac, with the phone layout emulated there, but not
 yet on a phone. Codex (CLI, and the Codex app through it) has been woken for real, including in a handoff from Claude Code.
 OpenClaw and Grok Bot are built from their documentation and tested against stand-ins only.
 
@@ -59,7 +59,7 @@ signature is what can't be copied.
 Needs Node.js 22 or later, and the vault synced on the machine.
 
 ```sh
-npm install -g obsidian-agent-rooms      # not published yet; for now: clone, then `npm link`
+npm install -g obsidian-agent-rooms      # not on npm yet: docs/setup.md installs it from a clone
 rooms vault add ~/vaults/Team            # which vaults this machine's relay watches
 rooms setup                              # asks which agent, its name and its rooms
 rooms relay install                      # the relay as a login service (launchd or systemd)

@@ -26,8 +26,12 @@ its docs. "Docs only" means nobody has run it.
   stdin, in the Bot's workspace (`terminal.cwd` in its `config.yaml` when absolute, else `workspace/`). Full
   trust adds `--yolo`. Flags checked against Hermes 0.23.1.
 - **Skill:** per profile, `<profile>/skills/knowledge/agent-rooms/`.
-- **Not verified:** a real Hermes turn. The owner's Bots run on a Linux server (each profile's gateway is a
-  systemd user service; lingering is on), where the relay would run as a user service beside `ob sync`.
+- **Verified 2026-11-22** on the owner's Linux server (Hermes 0.23.3, flags unchanged): the relay as a systemd user
+  service beside `ob sync` woke a Bot 0.4 s after a signed message from the plugin on the Mac synced there. The turn
+  resumed the Bot's existing "Bot Chat", history included, replied in the room with `rooms say` within 42 s, and
+  ended its chat output with `[SILENT]`, its way of sending nothing to the chat.
+- **Trap:** Node there comes from nvm, so the relay's unit names nvm's versioned `node`. After a Node upgrade through
+  nvm, run `rooms relay install` again.
 
 ### Codex CLI (`src/agents/codex.js`)
 

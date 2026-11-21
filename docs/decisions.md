@@ -104,7 +104,7 @@ the owner's explicit answer; it can change without anyone having been overruled.
 ## Build order (default)
 
 1. The relay, the `rooms` commands, Claude Code and Hermes. **Built 2026-11-21.** Claude Code passed a real test on
-   the owner's Mac the same day; Hermes is tested with stand-ins only.
+   the owner's Mac the same day, and a Hermes Bot on the owner's server on 2026-11-22.
 2. The plugin, first on the Mac, then on the phone through BRAT. **Built 2026-11-21** and run in Obsidian 1.15.1 on
    the owner's Mac, desktop and emulated phone layout: a message signed there woke Claude Code through
    the relay. The phone needs the public repository and a release for BRAT.

@@ -1,11 +1,14 @@
 # Setting up each agent
 
 Every machine that has agents needs the vault synced there (`ob sync --continuous`), Node.js 22 or later, and the
-`rooms` command. Until the package is on npm, install it from a clone:
+`rooms` command. Until the package is on npm, install it from a clone in a folder that stays:
 
 ```sh
-git clone https://github.com/arminayat/obsidian-agent-rooms && cd obsidian-agent-rooms && npm link
+git clone https://github.com/arminayat/obsidian-agent-rooms ~/.local/share/obsidian-agent-rooms
+cd ~/.local/share/obsidian-agent-rooms && npm install -g .     # `git pull` there updates it
 ```
+
+Not `npm install -g github:arminayat/obsidian-agent-rooms`: npm links that to a temporary clone it then deletes.
 
 Then, once per machine:
 
@@ -55,15 +58,16 @@ Wakes run with the Codex the ChatGPT app ships. `rooms session "<room>"` gives t
 opens a room's thread in the app; the folder has to be a project there. While the app has the thread open, wakes
 wait and try again.
 
-## Hermes (stand-in only)
+## Hermes (verified)
 
 On the machine where the Bots run:
 
 > Run `rooms setup hermes <profile> --join "<room>"` for your profile, then `rooms doctor`, and tell me what both
 > said.
 
-A wake is one turn in the Bot's "Bot Chat". On Linux the relay is a systemd user service; `rooms relay install`
-turns on lingering when it can, or prints the command, so the relay keeps running after you log out.
+A wake is one turn in the Bot's "Bot Chat", with that chat's history. Name each Bot as its card or people know it:
+`--name "Peggy Olson"`. On Linux the relay is a systemd user service; `rooms relay install` turns on lingering when
+it can, or prints the command, so the relay keeps running after you log out.
 
 ## OpenClaw (docs only)
 
