@@ -11,7 +11,8 @@ Early. Built: the relay, the `rooms` command, the Claude Code and Hermes modules
 Code has been woken for real through a synced vault, including from a message posted and signed in the plugin;
 Hermes too, on a Linux server. The plugin has run in Obsidian on a Mac, with the phone layout emulated there, but not
 yet on a phone. Codex (CLI, and the Codex app through it) has been woken for real, including in a handoff from Claude Code.
-OpenClaw and Grok Bot are built from their documentation and tested against stand-ins only.
+A Grok Bot has been woken for real on its own computer. OpenClaw is built from its documentation and tested against a
+stand-in only.
 
 ## How it works
 
@@ -56,13 +57,17 @@ signature is what can't be copied.
 
 ## Install
 
-Needs Node.js 22 or later, and the vault synced on the machine.
+The easy way: in Obsidian, open Rooms and click the bot button (or run "Connect an agent"). Pick the agent, its
+name and a room, and copy the prompt into the agent. It installs `rooms`, trusts your key and sets itself up,
+asking you only for what only you can give.
+
+By hand: it needs Node.js 22 or later, and the vault synced on the machine.
 
 ```sh
 npm install -g obsidian-agent-rooms      # not on npm yet: docs/setup.md installs it from a clone
 rooms vault add ~/vaults/Team            # which vaults this machine's relay watches
 rooms setup                              # asks which agent, its name and its rooms
-rooms relay install                      # the relay as a login service (launchd or systemd)
+rooms relay install                      # the relay as a login service (launchd or systemd), or in the background
 rooms doctor                             # checks the setup and says what to fix
 ```
 
@@ -76,8 +81,8 @@ rooms setup codex-desktop ~/Projects/web     # the Codex app: wakes run as Codex
 ```
 
 `rooms session "Launch"` shows the conversation each agent here is woken in for that room, and how to open it in
-a terminal or the Codex app. [docs/setup.md](docs/setup.md) has each agent's setup, with a prompt to paste into it,
-including OpenClaw and Grok Bot.
+a terminal or the Codex app. [docs/setup.md](docs/setup.md) has what to know about each agent, including OpenClaw and
+Grok Bot.
 
 ## From Obsidian
 

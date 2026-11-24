@@ -244,7 +244,10 @@ export function doctor(config) {
   }
   if (!Object.values(config.people).some((keys) => keys.length)) bad("No person's key is trusted, so a person's message wakes nobody by itself and permits nothing: rooms trust \"<person>\" <public key>");
   else good(`Trusted keys for: ${Object.entries(config.people).filter(([, keys]) => keys.length).map(([person]) => person).join(", ")}`);
-  relayStatus() ? good("The relay is installed as a login service") : bad("The relay isn't installed as a login service: rooms relay install");
+  const relay = relayStatus();
+  if (!relay.running) bad(`The relay isn't running: ${relay.installed ? "rooms relay ensure" : "rooms relay install"}`);
+  else if (relay.installed) good("The relay runs as a login service");
+  else good("The relay runs in the background, until this machine restarts; `rooms relay ensure` on a schedule starts it again");
   if (problems.length) process.exitCode = 1;
   else console.log("\nEverything checked is in order.");
 }

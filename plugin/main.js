@@ -11,7 +11,7 @@ import { senderKind } from "../src/policy.js";
 import { newKeyPair, sign } from "../src/sign.js";
 import { RoomStore } from "./store.js";
 import { RoomsView, VIEW } from "./view.js";
-import { NewRoomModal } from "./modals.js";
+import { ConnectModal, NewRoomModal } from "./modals.js";
 
 const KEY = "agent-rooms-key";
 const READ = "agent-rooms-read";
@@ -27,6 +27,7 @@ export default class AgentRooms extends Plugin {
     this.addRibbonIcon("messages-square", "Open rooms", () => this.open());
     this.addCommand({ id: "open", name: "Open rooms", callback: () => this.open() });
     this.addCommand({ id: "new-room", name: "New room", callback: () => new NewRoomModal(this).open() });
+    this.addCommand({ id: "connect-agent", name: "Connect an agent", callback: () => new ConnectModal(this).open() });
     this.addCommand({ id: "pause-all", name: "Pause every room (nobody is woken)", callback: () => this.pauseAll(true) });
     this.addCommand({ id: "resume-all", name: "Resume every room", callback: () => this.pauseAll(false) });
     this.addSettingTab(new AgentRoomsSettings(this));

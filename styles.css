@@ -307,6 +307,18 @@
   background: var(--background-secondary);
 }
 
+.agent-rooms-prompt {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  max-height: 40vh;
+  overflow-y: auto;
+  font-size: var(--font-ui-smaller);
+  padding: var(--size-4-2);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+}
+
 .agent-rooms-keys {
   width: 100%;
   font-family: var(--font-monospace);

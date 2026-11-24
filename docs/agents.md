@@ -82,7 +82,7 @@ its docs. "Docs only" means nobody has run it.
   vault: `tools.fs.workspaceOnly` defaults to off, but issues #30927 and #40334 report builds that blocked writes
   outside the workspace. Facts are from v2026.11.6.
 
-### Grok Bot (`src/agents/grok-bot.js`; docs only, never tried with a real Bot)
+### Grok Bot (`src/agents/grok-bot.js`; verified with one Bot)
 
 - **Wake:** `POST <the routine's "POST to" address>` with `Authorization: Bearer <key>` and a JSON body: `source`,
   `room`, `vault`, `you`, `addressed`, and `text`, the same wake text as other agents but with the full path of
@@ -91,10 +91,13 @@ its docs. "Docs only" means nobody has run it.
 - **Where:** the relay runs on the Bot's own computer (a Debian microVM per user, shared by their Bots), where the
   owner says `ob sync --continuous` already runs. Bots there share `/workspace`, so the routine's address tells
   their setups apart.
-- **Setup:** the person asks the Bot to create a routine whose instruction (in `docs/setup.md`) makes the body a
-  request; setup stores the address in the settings and the key in `secrets/` (one file, this user only). The
+- **Setup:** the plugin's prompt has the Bot create a routine whose instruction (`routineInstruction` in
+  `src/connect.js`) makes the body a request; setup stores the address in the settings and the key in `secrets/` (one file, this user only). The
   skill is copied to `/workspace/agent-rooms-skill/` for the Bot to save in chat. An "Always allow" rule for
   `rooms` keeps replies from waiting on auto-review, whose cards expire in 30 minutes.
-- **Not verified:** everything that touches the Bot: the body reaching the run, the Bot running `rooms`, and
-  whether a systemd user service (the relay) runs on that computer at all. Updates and resets remove installed
-  packages, so the install lives in `/workspace`.
+- **Verified 2026-11-24** with one Bot on its own computer: a signed message from the plugin reached the relay
+  there, which posted to the routine within a second; the Bot's reply was in the room 8 seconds later.
+- **Keeping it running:** updates and resets of the Bot's computer stop the relay and `ob sync`, so the setup
+  prompt has the Bot create a second routine that runs `rooms relay ensure` every 2 hours and restarts the sync.
+  Whether the relay runs there as a systemd user service or in the background isn't recorded; `ensure` handles
+  both.

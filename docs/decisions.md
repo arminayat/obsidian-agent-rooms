@@ -13,6 +13,11 @@ the owner's explicit answer; it can change without anyone having been overruled.
   Grok Bot's cloud computer too.
 - **One home per agent.** Every synced machine sees every message, so two relays could start the same agent.
   Which agents live on a machine is local settings; who is in a room is a file in the vault.
+- **One relay per machine, held by a lock** (`relay.lock` in the settings folder, refreshed every minute). Two would
+  both wake an agent for the same message. Where no service manager keeps the relay running (a Bot's computer, a
+  container), it runs in the background, and `rooms relay ensure` on a schedule starts it again after a restart;
+  the lock is how it tells a running relay from a dead one. A relay that finds another running exits as a success,
+  and the services restart it only after a failure, so the two never fight.
 - **An agent is a name plus the folder it starts in**, which can be a code project or a vault. Claude Desktop and
   Codex Desktop are windows onto the same agent, not members of their own: neither app accepts a prompt from
   outside.
@@ -100,6 +105,10 @@ the owner's explicit answer; it can change without anyone having been overruled.
 - **The plugin renders messages as Markdown, with `<` outside code shown as written.** Agents write placeholders
   like `<message>`, which the renderer would otherwise take for HTML and drop.
 - **Only the owner as a person for now** (default); anyone marked `kind: person` with a trusted key counts.
+- **Connecting an agent is one prompt from the plugin** ("Connect an agent", `src/connect.js`). Setting one up by
+  hand took a guide per platform and several back-and-forths. The prompt carries this device's public keys, so
+  trusting them stays the person's act: the keys travel through their clipboard, never through a vault file an
+  agent could have written.
 
 ## Build order (default)
 
@@ -112,7 +121,7 @@ the owner's explicit answer; it can change without anyone having been overruled.
    the owner's Mac with the ChatGPT app's own Codex (0.171): woken from the plugin, then in a handoff from Claude
    Code, resuming its thread. The Homebrew `codex` there (0.134) couldn't use the configured model.
 4. OpenClaw and Grok Bot. **Built 2026-11-21 from their docs**, tested against a stand-in `openclaw` and a local
-   webhook only. OpenClaw is woken through its CLI rather than its webhook (no token or config change; it waits for
+   webhook. A Grok Bot was woken for real on 2026-11-24. OpenClaw is woken through its CLI rather than its webhook (no token or config change; it waits for
    the turn); the reasons are in `agents.md`.
 5. Removing the old Usual Base relay, skill and plugin from the owner's Mac, once step 1 passed a real test. **Done
    2026-11-21.**

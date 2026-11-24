@@ -15,6 +15,7 @@ import { STATUS, sameName, slug, timeOf } from "./format.js";
 import { braked, overLimit, targets } from "./policy.js";
 import { moduleFor } from "./agents/index.js";
 import { packageRoot } from "./agents/shared.js";
+import { releaseLock, takeLock } from "./lock.js";
 import { isPaused, markRead, members, messageFiles, notIn, placeKey, placeOf, post, readMessage, roomNames, roomsDir, unread, writeWhole } from "./vault.js";
 
 const SHOWN_AT_MOST = 20;
@@ -30,6 +31,11 @@ export const agentKey = (agent) => `${agent.kind}:${agent.name}`;
 
 /** `once` looks at everything one time, waits for the wakes it started, and returns: for tests and for cron. */
 export async function runRelay({ once = false } = {}) {
+  const other = takeLock();
+  if (other) {
+    // Exits as a success, so a service manager doesn't start it again and again beside the running one.
+    return console.log(`A relay is already running on this machine${other.pid ? ` (process ${other.pid})` : ""}; this one stops.`);
+  }
   let config = loadConfig();
   const state = readJson("relay.json", {});
   state.agents ??= {};
@@ -206,6 +212,7 @@ export async function runRelay({ once = false } = {}) {
     while (inFlight.size) await Promise.allSettled([...inFlight]);
     await chain;
     writeStatus();
+    releaseLock();
     return;
   }
 

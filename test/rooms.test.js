@@ -272,3 +272,32 @@ test("setup, trust levels and looking at a machine", () => {
   b.relay();
   assert.deepEqual(names(b.runs()), ["Claude"], "an agent removed from this machine isn't woken here");
 });
+
+test("one relay per machine, and ensure starts it only when it isn't running", async () => {
+  const b = box();
+  b.ok(["vault", "add", b.vault]);
+  const lock = join(b.config, "relay.lock");
+  // Left by a relay that died, as after a restart: a process number that's gone, and one that isn't a relay.
+  writeFileSync(lock, JSON.stringify({ pid: 2 ** 22 - 1, beat: Date.now() }));
+  assert.match(b.ok(["relay", "status"]).out, /Relay: not running/);
+  writeFileSync(lock, JSON.stringify({ pid: process.pid, beat: Date.now() - 3_600_000 }));
+  assert.match(b.ok(["relay", "status"]).out, /Relay: not running/, "a stale lock naming a process that isn't a relay");
+
+  let pid;
+  try {
+    const started = b.ok(["relay", "ensure"]).out;
+    assert.match(started, /wasn't running; it runs in the background again \(process \d+\)/);
+    pid = Number(started.match(/process (\d+)/)[1]);
+    assert.match(b.ok(["relay", "ensure"]).out, new RegExp(`The relay is running \\(process ${pid}\\)`));
+    assert.match(b.ok(["relay", "--once"]).out, new RegExp(`already running on this machine \\(process ${pid}\\); this one stops`));
+    assert.match(b.ok(["relay", "status"]).out, /Relay: running \(process \d+\), in the background until this machine restarts/);
+    assert.match(b.rooms(["doctor"]).out, /ok {3}The relay runs in the background/);
+    assert.match(b.ok(["relay", "uninstall"]).out, /The relay is stopped/);
+    assert.ok(!existsSync(lock), "a relay that stops removes its lock");
+    assert.match(b.rooms(["doctor"]).out, /FIX {2}The relay isn't running: rooms relay install/);
+  } finally {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {}
+  }
+});

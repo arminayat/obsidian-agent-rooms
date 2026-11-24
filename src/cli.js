@@ -6,7 +6,7 @@ import { roomCommands } from "./commands.js";
 import { loadConfig } from "./config.js";
 import { Failure, fail, parseArgs } from "./core.js";
 import { runRelay } from "./relay.js";
-import { installRelay, relayStatus, uninstallRelay } from "./service.js";
+import { ensureRelay, installRelay, relayStatus, uninstallRelay } from "./service.js";
 import { agents, doctor, key, session, setup, status, trust, vault } from "./setup.js";
 import { packageRoot } from "./agents/shared.js";
 
@@ -35,7 +35,7 @@ On a machine
   rooms agents [remove "<name>"]
   rooms trust "<person>" <public key>                  whose signed messages count as a person's here
   rooms key new | show "<person>"                      a key for posting as a person from this terminal (testing)
-  rooms relay [install | uninstall | status]           the relay; without an action it runs here
+  rooms relay [install | ensure | uninstall | status]  the relay; without an action it runs here
   rooms session "<room>" [--as "<agent>"]             the conversation an agent is woken in, and how to open it
   rooms status | doctor
 `;
@@ -66,9 +66,10 @@ export async function main(argv) {
     case "relay": {
       const [action] = args;
       if (action === "install") return installRelay(flags);
+      if (action === "ensure") return ensureRelay();
       if (action === "uninstall") return uninstallRelay(flags);
       if (action === "status") return void relayStatus();
-      if (action) fail("rooms relay [install | uninstall | status]");
+      if (action) fail("rooms relay [install | ensure | uninstall | status]");
       return runRelay({ once: Boolean(flags.once) });
     }
     default: fail(`rooms doesn't have a "${command}" command. \`rooms help\` lists them.`);

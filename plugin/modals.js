@@ -1,6 +1,8 @@
-// The plugin's dialogs: starting a room, a room's members, and what each machine's relay last did.
+// The plugin's dialogs: starting a room, a room's members, connecting a new agent, and what each machine's relay
+// last did.
 
 import { MarkdownRenderer, Modal, Notice, Setting, moment, setIcon } from "obsidian";
+import { CONNECT_KINDS, connectPrompt } from "../src/connect.js";
 import { sameName } from "../src/format.js";
 
 const STALE_MS = 2 * 3_600_000; // a relay rewrites its note at least hourly, so two hours without one means trouble
@@ -97,6 +99,11 @@ export class MembersModal extends Modal {
     }
 
     new Setting(contentEl).setName("Add an agent").setHeading();
+    new Setting(contentEl).setName("A new agent").setDesc("Not set up on its machine yet? Get one prompt that sets it up and joins it here.")
+      .addButton((button) => button.setButtonText("Connect an agent").onClick(() => {
+        this.close();
+        new ConnectModal(plugin, room).open();
+      }));
     let agent = "";
     let tell = true;
     const suggestions = (await knownAgents(store)).filter((known) => !members.some((m) => sameName(m.name, known)));
@@ -122,6 +129,82 @@ export class MembersModal extends Modal {
       plugin.refresh();
       this.draw();
     }));
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
+}
+
+/** One prompt that sets a new agent up on its machine, with this device's keys in it. */
+export class ConnectModal extends Modal {
+  constructor(plugin, room = "") {
+    super(plugin.app);
+    this.plugin = plugin;
+    this.choice = { kind: "claude-code", name: "", room };
+  }
+
+  async onOpen() {
+    const { contentEl, plugin, choice } = this;
+    this.setTitle("Connect an agent");
+    contentEl.addClass("agent-rooms-connect");
+    if (!plugin.settings.name) {
+      contentEl.createEl("p", { text: "First set your name in rooms: the prompt makes the agent trust your messages under it." });
+      new Setting(contentEl).addButton((button) => button.setButtonText("Open settings").setCta().onClick(() => {
+        this.close();
+        plugin.openSettings();
+      }));
+      return;
+    }
+    const rooms = await plugin.store.rooms();
+    const keys = [(await plugin.key()).publicKey, ...plugin.settings.otherKeys.filter(Boolean)];
+    const folder = typeof this.app.vault.adapter.getBasePath === "function" ? this.app.vault.adapter.getBasePath() : "";
+
+    let paste;
+    let preview;
+    let nameText;
+    const draw = () => {
+      const kind = CONNECT_KINDS[choice.kind];
+      paste.setText(kind.paste);
+      nameText.setPlaceholder(kind.needsName ? "Required, for example Scout" : "Optional: its setup names it");
+      preview.setText(kind.needsName && !choice.name.trim() ? "Give it a name in rooms first." : this.prompt(keys, folder));
+    };
+
+    new Setting(contentEl).setName("Agent").addDropdown((dropdown) => {
+      for (const [kind, { label }] of Object.entries(CONNECT_KINDS)) dropdown.addOption(kind, label);
+      dropdown.setValue(choice.kind).onChange((kind) => {
+        choice.kind = kind;
+        draw();
+      });
+    });
+    new Setting(contentEl).setName("Its name in rooms").addText((text) => {
+      nameText = text;
+      text.onChange((value) => {
+        choice.name = value;
+        draw();
+      });
+    });
+    new Setting(contentEl).setName("Room to join").addDropdown((dropdown) => {
+      dropdown.addOption("", "None yet");
+      for (const room of rooms) dropdown.addOption(room, room);
+      dropdown.setValue(rooms.includes(choice.room) ? choice.room : "").onChange((room) => {
+        choice.room = room;
+        draw();
+      });
+    });
+    paste = contentEl.createEl("p", { cls: "setting-item-description" });
+    preview = contentEl.createEl("pre", { cls: "agent-rooms-prompt" });
+    new Setting(contentEl).addButton((button) => button.setButtonText("Copy prompt").setCta().onClick(async () => {
+      if (CONNECT_KINDS[choice.kind].needsName && !choice.name.trim()) return new Notice("Give it a name in rooms first.");
+      await navigator.clipboard.writeText(this.prompt(keys, folder));
+      new Notice("Copied. Paste it into the agent.");
+    }));
+    draw();
+  }
+
+  prompt(keys, folder) {
+    const { plugin, choice } = this;
+    return connectPrompt({ ...choice, vault: this.app.vault.getName(), folder, person: plugin.settings.name, keys });
   }
 
   onClose() {

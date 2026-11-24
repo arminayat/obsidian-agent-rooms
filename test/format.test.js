@@ -1,8 +1,10 @@
-// The parts with no files in them: the message format, signatures, and who a message wakes.
+// The parts with no files in them: the message format, signatures, who a message wakes, and the prompt that
+// connects an agent.
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MESSAGE_FILE, dayOf, messageFileName, messageText, parseFile, parseMember, parseMessage, sameName, signedText, slug, timeOf } from "../src/format.js";
+import { CONNECT_KINDS, connectPrompt, routineInstruction } from "../src/connect.js";
 import { braked, overLimit, senderKind, targets } from "../src/policy.js";
 import { newKeyPair, sign, verify } from "../src/sign.js";
 
@@ -97,4 +99,28 @@ test("the brake and the limits", () => {
   assert.equal(overLimit([now - 10, now - 20], limits, now), "2 wakes in the last hour");
   assert.equal(overLimit([now - 10, now - 4_000_000], limits, now), "");
   assert.equal(overLimit([now - 4_000_000, now - 5_000_000, now - 6_000_000], limits, now), "3 wakes in the last day");
+});
+
+test("one prompt connects an agent: your keys, the vault, the room, and the steps for its kind", () => {
+  const keys = ["A".repeat(86), "B".repeat(86)];
+  const claude = connectPrompt({ kind: "claude-code", room: "Launch", vault: "Team", folder: "/Users/me/vaults/Team", person: "Ada", keys });
+  assert.match(claude, /vault "Team"/);
+  assert.match(claude, /On my computer it's \/Users\/me\/vaults\/Team/);
+  assert.match(claude, new RegExp(`rooms trust "Ada" ${"A".repeat(86)}\\n   rooms trust "Ada" ${"B".repeat(86)}`), "every key of the person's, from their device");
+  assert.match(claude, /rooms setup claude-code <the project folder you work in> --join "Launch"/);
+  assert.match(claude, /\d\. rooms relay install\n\d\. rooms doctor/);
+  assert.doesNotMatch(claude, /routine|\/workspace/);
+
+  const grok = connectPrompt({ kind: "grok-bot", name: "Scout", room: "Launch", vault: "Team", person: "Ada", keys: keys.slice(0, 1) });
+  assert.match(grok, /R means `node \/workspace\/obsidian-agent-rooms\/bin\/rooms`/);
+  assert.match(grok, /R setup grok-bot --name "Scout" --url <the address> --key - --join "Launch"/);
+  assert.ok(grok.includes(routineInstruction("Scout")), "the routine's instruction, word for word");
+  assert.match(grok, /every 2 hours[\s\S]*rooms relay ensure/, "a routine that restarts the relay after the computer restarts");
+  assert.doesNotMatch(grok, /On my computer/, "a phone doesn't know the folder");
+
+  const unnamed = connectPrompt({ kind: "hermes", vault: "Team", person: "Ada", keys: keys.slice(0, 1) });
+  assert.match(unnamed, /rooms setup hermes <the Hermes profile this chat runs in, or default>\n/);
+  assert.match(unnamed, /tell me your name in rooms, and I'll add you to one/);
+  assert.match(connectPrompt({ kind: "openclaw", name: 'Say "hi" $HOME', vault: "Team", person: "Ada", keys }), /--name "Say \\"hi\\" \\\$HOME"/, "a name can't break out of its quotes");
+  for (const kind of Object.keys(CONNECT_KINDS)) assert.match(connectPrompt({ kind, name: "X", vault: "Team", person: "Ada", keys }), /relay install[\s\S]*doctor/, kind);
 });

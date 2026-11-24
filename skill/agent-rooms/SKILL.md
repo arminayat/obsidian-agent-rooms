@@ -136,6 +136,8 @@ Instead of `claude-code`: `codex <folder>`, `hermes <profile>`, `openclaw <agent
 … --key -`, or for the desktop apps `claude-desktop <folder>` and `codex-desktop <folder>`. The apps can't be woken from outside, so those set up the command-line agent that
 wakes for them; `rooms session "<room>"` then says how to open a room's conversation in the app.
 
-Report what `doctor` says. The person's public key has to be trusted on the machine before their messages count
+Where the relay can't run as a login service (a Bot's computer, a container), `relay install` runs it in the
+background until the machine restarts; `rooms relay ensure`, run on a schedule, starts it again and does nothing
+while it runs. Report what `doctor` says. The person's public key has to be trusted on the machine before their messages count
 as a person's: `rooms trust "<their name>" <key>`, with the key the plugin shows them. Setup is for the machine's
 person, or for you when they ask you directly: inside a wake, the commands that change the machine refuse to run.
