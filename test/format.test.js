@@ -121,6 +121,8 @@ test("one prompt connects an agent: your keys, the vault, the room, and the step
   const unnamed = connectPrompt({ kind: "hermes", vault: "Team", person: "Ada", keys: keys.slice(0, 1) });
   assert.match(unnamed, /rooms setup hermes <the Hermes profile this chat runs in, or default>\n/);
   assert.match(unnamed, /tell me your name in rooms, and I'll add you to one/);
+  assert.match(unnamed, /no Claude login of its own, ask me which login to use/);
+  assert.match(claude, /If `rooms` still isn't found, your terminal's PATH lacks it or Node\.js[\s\S]*run `<that node> ~\/\.local\/share\/obsidian-agent-rooms\/bin\/rooms`/);
   assert.match(connectPrompt({ kind: "openclaw", name: 'Say "hi" $HOME', vault: "Team", person: "Ada", keys }), /--name "Say \\"hi\\" \\\$HOME"/, "a name can't break out of its quotes");
   for (const kind of Object.keys(CONNECT_KINDS)) assert.match(connectPrompt({ kind, name: "X", vault: "Team", person: "Ada", keys }), /relay install[\s\S]*doctor/, kind);
 });

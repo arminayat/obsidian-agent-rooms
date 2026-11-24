@@ -22,13 +22,55 @@ function profiles() {
   return existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort() : [];
 }
 
+const read = (file) => (existsSync(file) ? readFileSync(file, "utf8") : "");
+const config = (profile) => read(join(profileDir(profile), "config.yaml"));
+const unquote = (text) => text.replace(/^(["'])(.*)\1$/, "$2");
+
+/** A value in a config.yaml that Hermes wrote, by its keys, such as ["terminal", "cwd"]: nested mappings only. */
+export function yamlValue(text, keys) {
+  let level = 0;
+  let parent = -1; // the indent of the last key found
+  let child = null; // the indent of the keys inside it
+  for (const line of text.split(/\r?\n/)) {
+    const entry = line.match(/^( *)([^\s#-][^:]*?):(?:[ \t]+(.*?))?[ \t]*$/);
+    if (!entry) continue;
+    const indent = entry[1].length;
+    if (indent <= parent) return undefined;
+    child ??= indent;
+    if (indent !== child || unquote(entry[2]) !== keys[level]) continue;
+    if (++level === keys.length) return unquote((entry[3] ?? "").replace(/[ \t]+#.*$/, ""));
+    parent = indent;
+    child = null;
+  }
+  return undefined;
+}
+
 /** The folder a Bot's terminal starts in: `terminal.cwd` in its config.yaml when absolute, else its workspace. */
 function workspaceOf(profile) {
-  const file = join(profileDir(profile), "config.yaml");
-  const text = existsSync(file) ? readFileSync(file, "utf8") : "";
-  const terminal = text.match(/^terminal:[ \t]*\r?\n((?:[ \t]+.*(?:\r?\n|$))*)/m)?.[1] ?? "";
-  const cwd = terminal.match(/^[ \t]+cwd:[ \t]*(.+?)[ \t]*$/m)?.[1]?.replace(/^["']|["']$/g, "");
+  const cwd = yamlValue(config(profile), ["terminal", "cwd"]);
   return cwd && isAbsolute(cwd) ? cwd : join(profileDir(profile), "workspace");
+}
+
+/**
+ * Why a Bot whose model is the Claude subscription can't sign in when the relay starts it, or "". Started with
+ * `-p <profile>`, the Claude plugin refuses the login of the profile Hermes was launched for, so a named profile
+ * needs its own: the plugin's claude_config_dir setting, or a token or folder in its .env.
+ * The default profile is the one launched for, so it uses this machine's Claude login.
+ */
+export function claudeLoginProblem(profile) {
+  if (profile === DEFAULT) return "";
+  const text = config(profile);
+  const provider = yamlValue(text, ["model", "provider"]) ?? "";
+  if (!provider.startsWith("claude-subscription")) return "";
+  const folder = yamlValue(text, ["plugins", "entries", provider, "settings", "claude_config_dir"])?.trim();
+  if (folder) {
+    return existsSync(folder.replace(/^~(?=\/|$)/, homedir())) ? "" : `Its Claude login folder ${folder} (claude_config_dir) doesn't exist.`;
+  }
+  const env = join(profileDir(profile), ".env");
+  if (/^(?:export[ \t]+)?(?:CLAUDE_CODE_OAUTH_TOKEN|CLAUDE_SUBSCRIPTION_DIRECTSDK_CONFIG_DIR|CLAUDE_CONFIG_DIR)[ \t]*=[ \t]*["']?[^\s"'#]/m.test(read(env))) return "";
+  return "Its model is a Claude subscription, and its profile has no Claude login of its own, so a woken turn can't sign in. " +
+    `Ask its person which login it should use: this machine's, with \`hermes -p ${profile} config set plugins.entries.${provider}.settings.claude_config_dir ~/.claude\` ` +
+    `(where Claude Code keeps it), or one of its own, with CLAUDE_CODE_OAUTH_TOKEN from \`claude setup-token\` in ${shown(env)}.`;
 }
 
 const displayName = (profile) => (profile === DEFAULT ? "Hermes" : profile.charAt(0).toUpperCase() + profile.slice(1));
@@ -57,6 +99,8 @@ export default {
       const name = typeof flags.name === "string" && flags.name.trim() ? flags.name.trim() : displayName(profile);
       agents.push({ kind: this.kind, name, folder: realpathSync(workspace), profile });
       if (!flags["no-skill"]) notes.push(`"${name}" (profile ${profile}): the agent-rooms skill in ${shown(skillDir(profile))}: ${installSkill(skillDir(profile))}.`);
+      const login = claudeLoginProblem(profile);
+      if (login) notes.push(`"${name}": ${login}`);
     }
     if (!command()) notes.push("`hermes` isn't on the PATH here, so the relay can't start a turn yet.");
     return { agents, notes };
@@ -77,6 +121,8 @@ export default {
     if (!command()) problems.push("`hermes` isn't on the PATH.");
     if (!existsSync(profileDir(agent.profile || DEFAULT))) problems.push(`Its profile ${agent.profile} is gone.`);
     if (!skillInstalled(skillDir(agent.profile || DEFAULT))) problems.push(`The skill isn't in ${shown(skillDir(agent.profile || DEFAULT))}; run setup again.`);
+    const login = claudeLoginProblem(agent.profile || DEFAULT);
+    if (login) problems.push(login);
     return problems;
   },
 };

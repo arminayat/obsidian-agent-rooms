@@ -31,7 +31,17 @@ its docs. "Docs only" means nobody has run it.
   resumed the Bot's existing "Bot Chat", history included, replied in the room with `rooms say` within 42 s, and
   ended its chat output with `[SILENT]`, its way of sending nothing to the chat.
 - **Trap:** Node there comes from nvm, so the relay's unit names nvm's versioned `node`. After a Node upgrade through
-  nvm, run `rooms relay install` again.
+  nvm, run `rooms relay install` again, and setup again for each Bot, whose skill names the same `node`.
+- **Trap, found 2026-11-24:** a Bot's own terminal (the dashboard's, its gateway's) had neither `rooms` nor Node on
+  its PATH, so a new Bot got "rooms: command not found" when it ran the setup prompt. Woken turns are fine, since the
+  relay passes both. The installed skill now ends with the machine's full `rooms` command, and doctor, run in that
+  terminal, says when `rooms` doesn't run there.
+- **Trap, found 2026-11-24:** a Bot whose model is the Claude subscription plugin
+  (`claude-subscription-directsdk-experimental`) works in its chat but fails every wake with "hermes ended with 1":
+  started with `-p <profile>`, the plugin won't use the login of the profile Hermes was launched for, and asks for
+  one of the profile's own. Setup and doctor say so for a named profile with neither the plugin's
+  `claude_config_dir` setting nor `CLAUDE_CODE_OAUTH_TOKEN` (or a config folder) in its `.env`; which login to give it
+  is its person's choice.
 
 ### Codex CLI (`src/agents/codex.js`)
 

@@ -4,29 +4,17 @@
 // and `rooms relay ensure`, run on a schedule, starts it again.
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, openSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { configDir, loadConfig, readJson } from "./config.js";
 import { fail, shown } from "./core.js";
-import { binDir, which } from "./agents/shared.js";
+import { binDir, nodePath } from "./agents/shared.js";
 import { moduleFor } from "./agents/index.js";
 import { runningRelay } from "./lock.js";
 
 const LABEL = "com.github.arminayat.agent-rooms.relay";
 export const relayLog = () => join(configDir(), "relay.log");
-
-/**
- * The Node to start the relay with. `process.execPath` has its links resolved, so it can point inside another
- * app's bundle (Hermes ships one) that moves on update; the `node` on the PATH is kept when it's the same program.
- */
-function nodePath() {
-  const found = which("node");
-  try {
-    if (found && realpathSync(found) === realpathSync(process.execPath)) return found;
-  } catch {}
-  return process.execPath;
-}
 
 /** How the relay is started, and the environment it gets: the agents' commands on its PATH. */
 function relayCommand() {

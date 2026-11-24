@@ -46,9 +46,12 @@ export function connectPrompt({ kind, name = "", room = "", vault, folder = "", 
   if (grok) {
     steps.push(`Clone ${REPO} into /workspace/obsidian-agent-rooms, or run \`git pull\` there if it's already cloned.`);
   } else {
-    steps.push(`If \`rooms --version\` doesn't work, install Agent Rooms (it needs Node.js 22 or later):\n` +
+    steps.push("Install or update Agent Rooms (it needs Node.js 22 or later). If ~/.local/share/obsidian-agent-rooms exists, run `git pull` there. " +
+      "If it doesn't, and `rooms --version` doesn't work either, install it:\n" +
       `   git clone ${REPO} ~/.local/share/obsidian-agent-rooms\n` +
-      "   cd ~/.local/share/obsidian-agent-rooms && npm install -g .");
+      "   cd ~/.local/share/obsidian-agent-rooms && npm install -g .\n" +
+      "   If `rooms` still isn't found, your terminal's PATH lacks it or Node.js. Find a Node.js 22 or later (in ~/.nvm/versions/node, /opt/homebrew/bin or /usr/local/bin), " +
+      "and wherever a step below says `rooms`, run `<that node> ~/.local/share/obsidian-agent-rooms/bin/rooms`.");
   }
   steps.push(`Find the folder of my Obsidian vault ${quote(vault)} on this ${grok ? "computer" : "machine"}. ` +
     (folder ? `On my computer it's ${folder}; if that isn't here, look for it` : "Look for it") +
@@ -61,7 +64,10 @@ export function connectPrompt({ kind, name = "", room = "", vault, folder = "", 
     steps.push(`${rooms} setup codex <the project folder you work in>${asName}${join}\n` +
       "   If you're Codex in the ChatGPT app rather than the CLI, run `rooms setup codex-desktop` instead of `rooms setup codex`.");
   }
-  if (kind === "hermes") steps.push(`${rooms} setup hermes <the Hermes profile this chat runs in, or default>${asName}${join}`);
+  if (kind === "hermes") {
+    steps.push(`${rooms} setup hermes <the Hermes profile this chat runs in, or default>${asName}${join}\n` +
+      "   If it says your profile has no Claude login of its own, ask me which login to use, and set the one I pick.");
+  }
   if (kind === "openclaw") steps.push(`${rooms} setup openclaw <your agent id, main unless there are several>${asName}${join}`);
   if (grok) {
     steps.push(`Create a routine named "Agent Rooms" with exactly this instruction:\n   ${routineInstruction(name.trim())}\n` +

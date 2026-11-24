@@ -2,7 +2,7 @@
 // agent is given. Each module (claude-code.js, hermes.js, …) says how its own agent is found, set up and started.
 
 import { spawn } from "node:child_process";
-import { cpSync, existsSync, lstatSync, mkdirSync, rmSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, lstatSync, mkdirSync, realpathSync, rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,20 +12,41 @@ export const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "
 export const binDir = join(packageRoot, "bin");
 const skillSource = join(packageRoot, "skill", "agent-rooms");
 
+/** A command's full path on this process's PATH alone, as a shell started the same way finds it; or null. */
+export const onPath = (command) =>
+  (process.env.PATH || "").split(":").filter(Boolean).map((dir) => join(dir, command)).find((file) => existsSync(file)) ?? null;
+
 /** A command's full path: the override if given, else the first match on the PATH or in ~/.local/bin. */
 export function which(command, override) {
   if (override) return override;
-  for (const dir of [...(process.env.PATH || "").split(":"), join(homedir(), ".local", "bin")].filter(Boolean)) {
-    if (existsSync(join(dir, command))) return join(dir, command);
-  }
-  return null;
+  const local = join(homedir(), ".local", "bin", command);
+  return onPath(command) ?? (existsSync(local) ? local : null);
 }
+
+/**
+ * The Node running this. `process.execPath` has its links resolved, so it can point inside another app's bundle
+ * (Hermes ships one) that moves on update; the `node` on the PATH is kept when it's the same program.
+ */
+export function nodePath() {
+  const found = which("node");
+  try {
+    if (found && realpathSync(found) === realpathSync(process.execPath)) return found;
+  } catch {}
+  return process.execPath;
+}
+
+/** `rooms` as a full command, for a terminal whose PATH has neither it nor Node (a Bot's, a GUI app's). */
+export const roomsCommand = () => `"${nodePath()}" "${join(binDir, "rooms")}"`;
 
 /** The PATH a woken agent runs with: `rooms` first, then Node, the agent's own command, and the usual places. */
 export const wakePath = (command) =>
   [...new Set([binDir, dirname(process.execPath), dirname(command), ...(process.env.PATH || "/usr/local/bin:/usr/bin:/bin").split(":")])].join(":");
 
-/** Copies the skill to where an agent loads skills from. A link there is someone's own arrangement: left alone. */
+/**
+ * Copies the skill to where an agent loads skills from, with this machine's full `rooms` command at the end: an
+ * agent's own terminal may not have `rooms` or Node on its PATH (a Hermes Bot's often doesn't), while woken turns
+ * get both from the relay. A link there is someone's own arrangement: left alone.
+ */
 export function installSkill(target) {
   try {
     if (lstatSync(target).isSymbolicLink()) return "is a link, so it was left alone";
@@ -33,6 +54,7 @@ export function installSkill(target) {
   rmSync(target, { recursive: true, force: true });
   mkdirSync(dirname(target), { recursive: true });
   cpSync(skillSource, target, { recursive: true });
+  appendFileSync(join(target, "SKILL.md"), `\n## On this machine\n\nIf \`rooms\` isn't found in your terminal, run ${roomsCommand()} instead, with the same arguments.\n`);
   return "installed";
 }
 

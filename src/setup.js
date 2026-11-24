@@ -4,12 +4,13 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, realpathSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { readJson, saveConfig } from "./config.js";
 import { createKey, fail, listFlag, readKey, shown, vaultFor } from "./core.js";
 import { sameName } from "./format.js";
 import { KINDS, moduleFor } from "./agents/index.js";
+import { binDir, nodePath, onPath, roomsCommand } from "./agents/shared.js";
 import { agentKey } from "./relay.js";
 import { relayStatus } from "./service.js";
 import { addMember, findRoom, isPaused, members, placeKey, roomNames, roomsDir } from "./vault.js";
@@ -225,6 +226,14 @@ export function doctor(config) {
     console.log(`FIX  ${line}`);
   };
   Number(process.versions.node.split(".")[0]) >= 22 ? good(`Node.js ${process.versions.node}`) : bad(`Node.js ${process.versions.node}: 22 or later is needed.`);
+  // A Grok Bot always runs it by its full path; any other agent may type `rooms` in its own terminal.
+  if (config.agents.some((agent) => agent.kind !== "grok-bot")) {
+    const missing = [["rooms", "`rooms`", binDir], ["node", "Node.js", dirname(nodePath())]].filter(([command]) => !onPath(command));
+    if (!missing.length) good("`rooms` runs in this terminal");
+    else bad(`\`rooms\` doesn't run in this terminal: ${missing.map(([, name]) => name).join(" and ")} ${missing.length > 1 ? "aren't" : "isn't"} on its PATH. ` +
+      `Woken turns get it from the relay, but an agent working in this terminal at other times has to run ${roomsCommand()} instead, as the skill it was given says. ` +
+      `For plain \`rooms\`, add ${missing.map(([, , dir]) => shown(dir)).join(" and ")} to the PATH this terminal starts with.`);
+  }
   if (!config.vaults.length) bad("No vault is registered: rooms vault add <folder>");
   for (const v of config.vaults) {
     if (!existsSync(v.path)) {

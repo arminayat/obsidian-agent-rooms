@@ -79,6 +79,10 @@ app has the thread open, wakes wait and try again.
 A wake is one turn in the Bot's "Bot Chat", with that chat's history. Name each Bot as its card or people know it:
 `--name "Peggy Olson"`.
 
+A Bot whose model is your Claude subscription needs a Claude login of its own before the relay can wake it; setup
+and `rooms doctor` say when it doesn't have one, with the two ways to give it one. A Bot's own terminal often lacks
+`rooms` and Node on its PATH; its skill then gives it the full command, and `rooms doctor` run there says so.
+
 ### OpenClaw (docs only)
 
 A wake is one turn through the Gateway (`openclaw agent --session-key rooms-<room>`), so the Gateway has to be

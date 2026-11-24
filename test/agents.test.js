@@ -1,11 +1,15 @@
-// The agent modules beyond Claude Code and Hermes (Codex, the desktop apps), the conversation each agent is woken
-// in, and what a woken agent may not change. Stand-in agents only.
+// The agent modules beyond Claude Code and Hermes (Codex, the desktop apps), what each needs from its machine, the
+// conversation each agent is woken in, and what a woken agent may not change. Stand-in agents only.
 
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+import { yamlValue } from "../src/agents/hermes.js";
 import { names, prompt, scene } from "./helpers.js";
+
+const binDir = join(dirname(fileURLToPath(import.meta.url)), "..", "bin");
 
 test("Codex is woken in a thread of its own per room, sandboxed to its folder, the vault and its place", () => {
   const b = scene();
@@ -119,4 +123,56 @@ test("a Codex error says what the API said, without Codex's own log", () => {
   assert.equal(notice.notice, true);
   assert.match(notice.body, /codex ended with 1: The model is not supported\.\./);
   assert.doesNotMatch(notice.body, /codex_models_manager|\{"type"/);
+});
+
+test("a Hermes Bot on a Claude subscription needs a Claude login of its own before it can be woken", () => {
+  const b = scene();
+  const profile = join(b.hermes, "profiles", "belfort");
+  mkdirSync(profile, { recursive: true });
+  const config = (extra = "") => writeFileSync(join(profile, "config.yaml"),
+    "model:\n  default: claude-opus\n  provider: claude-subscription-directsdk-experimental\nterminal:\n  cwd: /tmp # its own\n" +
+    `plugins:\n  enabled:\n    - claude-subscription-directsdk-experimental\n${extra}`);
+  config();
+  const setup = b.ok(["setup", "hermes", "belfort", "--name", "Belfort", "--join", "Launch"]).out;
+  assert.match(setup, /"Belfort": Its model is a Claude subscription, and its profile has no Claude login of its own/);
+  assert.match(setup, /hermes -p belfort config set plugins\.entries\.claude-subscription-directsdk-experimental\.settings\.claude_config_dir ~\/\.claude/);
+  const doctor = () => b.rooms(["doctor"]).out.split("\n").filter((line) => line.includes("Belfort")).join("\n");
+  assert.match(doctor(), /FIX {2}Belfort: Its model is a Claude subscription/);
+
+  config("  entries:\n    claude-subscription-directsdk-experimental:\n      settings:\n        claude_config_dir: ~/.claude-belfort\n");
+  assert.match(doctor(), /FIX {2}Belfort: Its Claude login folder ~\/\.claude-belfort \(claude_config_dir\) doesn't exist/);
+  mkdirSync(join(b.home, ".claude-belfort"));
+  assert.match(doctor(), /ok {3}Belfort: Hermes is set up/, "a login folder of its own");
+
+  config();
+  writeFileSync(join(profile, ".env"), "CLAUDE_CODE_OAUTH_TOKEN=\n");
+  assert.match(doctor(), /FIX {2}Belfort/, "an empty token is no login");
+  writeFileSync(join(profile, ".env"), "OPENAI_API_KEY=x\nexport CLAUDE_CODE_OAUTH_TOKEN=\"sk-ant-oat01-x\"\n");
+  assert.match(doctor(), /ok {3}Belfort: Hermes is set up/, "a token of its own");
+
+  writeFileSync(join(profile, "config.yaml"), "model:\n  provider: openai-codex\n");
+  rmSync(join(profile, ".env"));
+  assert.match(doctor(), /ok {3}Belfort: Hermes is set up/, "another provider needs no Claude login");
+  assert.doesNotMatch(b.rooms(["doctor"]).out, /FIX {2}Hermes:/, "the default profile is the one Hermes is launched for");
+});
+
+test("a value is read from a config.yaml by its keys, nested mappings only", () => {
+  const text = "model:\n  default: gpt\n  provider: 'openai-codex'\nterminal:\n  env:\n    cwd: /wrong\n  cwd: \"/right\"  # a comment\n" +
+    "plugins:\n  enabled:\n    - a\n  entries:\n    a:\n      settings:\n        claude_config_dir: ~/.claude\nbase_url: https://x.test/a:b\n";
+  assert.equal(yamlValue(text, ["model", "provider"]), "openai-codex");
+  assert.equal(yamlValue(text, ["terminal", "cwd"]), "/right", "not the deeper key of the same name");
+  assert.equal(yamlValue(text, ["plugins", "entries", "a", "settings", "claude_config_dir"]), "~/.claude");
+  assert.equal(yamlValue(text, ["base_url"]), "https://x.test/a:b");
+  assert.equal(yamlValue(text, ["model", "cwd"]), undefined, "a key from the next mapping isn't this one's");
+  assert.equal(yamlValue(text, ["missing"]), undefined);
+});
+
+test("an agent's own terminal may lack rooms: the skill gives the full command, and doctor says so", () => {
+  const b = scene();
+  const skill = readFileSync(join(b.hermes, "skills", "knowledge", "agent-rooms", "SKILL.md"), "utf8");
+  assert.match(skill, /## On this machine\n\nIf `rooms` isn't found in your terminal, run ".*node" ".*bin\/rooms" instead, with the same arguments\.\n$/);
+  const node = dirname(process.execPath);
+  const without = b.rooms(["doctor"], { extraEnv: { PATH: `${node}:/usr/bin:/bin` } }).out;
+  assert.match(without, /FIX {2}`rooms` doesn't run in this terminal: `rooms` isn't on its PATH\. .* run ".*node" ".*bin\/rooms" instead[\s\S]*add .*bin to the PATH/);
+  assert.match(b.rooms(["doctor"], { extraEnv: { PATH: `${binDir}:${node}:/usr/bin:/bin` } }).out, /ok {3}`rooms` runs in this terminal/);
 });
