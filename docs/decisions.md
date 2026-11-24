@@ -79,6 +79,13 @@ the owner's explicit answer; it can change without anyone having been overruled.
   messages.
 - **A woken agent is shown everything it hadn't read in the room** (the newest 20), with what woke it among them,
   and those count as read so its reply isn't refused.
+- **Every wake starts with the room's manual and its members' roles**, and tells the agent to keep to them. The
+  manual is `ROOM.md` below its title, so the person writes it as a note; `%% comments %%` there are for people and
+  never reach agents. A role is one line, `role` in the member's own file, so setting one never touches another
+  member's file. It's shown on every wake, not only the first, since a Grok Bot routine starts fresh each time and
+  a long session forgets; past 4,000 characters the manual is cut and points to the file. Manuals and roles are
+  guidance, not permissions: the person sets them, and `rooms role` and `--role` refuse inside a wake. Asked by the
+  owner on 2026-11-24, to keep rooms to their purpose and agents from talking there without one.
 - **The desktop apps are setups, not agents** (`setup claude-desktop`, `setup codex-desktop`): they register the
   command-line agent that wakes for them. `codex-desktop` uses the Codex the ChatGPT app ships, the version that
   reads and writes the app's threads. `rooms session` gives how to open a room's conversation: Claude Desktop

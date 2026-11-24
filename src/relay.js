@@ -16,7 +16,7 @@ import { braked, overLimit, targets } from "./policy.js";
 import { moduleFor } from "./agents/index.js";
 import { packageRoot } from "./agents/shared.js";
 import { releaseLock, takeLock } from "./lock.js";
-import { isPaused, markRead, members, messageFiles, notIn, placeKey, placeOf, post, readMessage, roomNames, roomsDir, unread, writeWhole } from "./vault.js";
+import { isPaused, markRead, members, messageFiles, notIn, placeKey, placeOf, post, readMessage, roomAbout, roomNames, roomsDir, unread, writeWhole } from "./vault.js";
 
 const SHOWN_AT_MOST = 20;
 const GIVE_UP_AFTER = 3;
@@ -104,6 +104,8 @@ export async function runRelay({ once = false } = {}) {
     const shownPaths = [...new Set([...everything.slice(-SHOWN_AT_MOST), ...triggers.map((m) => m.path)])].sort();
     const wake = {
       vault, room,
+      about: roomAbout(vault, room),
+      members: roomMembers,
       messages: await loaded(config, vault, room, shownPaths),
       earlier: everything.length - shownPaths.length,
       addressed: triggers.some((m) => m.to.some((name) => sameName(name, agent.name)) || (m.re && sameName(authorOf(m.re), agent.name))),

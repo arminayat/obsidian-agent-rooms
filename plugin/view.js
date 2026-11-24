@@ -5,7 +5,7 @@
 import { ItemView, MarkdownRenderer, Notice, moment, setIcon } from "obsidian";
 import { fileOf, sameName } from "../src/format.js";
 import { targets } from "../src/policy.js";
-import { ConnectModal, MembersModal, NewRoomModal, RelaysModal } from "./modals.js";
+import { AboutModal, ConnectModal, MembersModal, NewRoomModal, RelaysModal } from "./modals.js";
 import { shownText } from "./store.js";
 
 export const VIEW = "agent-rooms";
@@ -174,6 +174,7 @@ export class RoomsView extends ItemView {
     if (about.description) titles.createDiv({ cls: "agent-rooms-subtitle", text: about.description });
     const actions = header.createDiv({ cls: "agent-rooms-actions" });
     const people = members.length;
+    iconButton(actions, "info", "What this room is for", () => new AboutModal(plugin, room).open());
     const membersButton = iconButton(actions, "users", `Members (${people})`, () => new MembersModal(plugin, room).open());
     membersButton.createSpan({ cls: "agent-rooms-count", text: String(people) });
     iconButton(actions, roomPaused ? "play" : "pause", roomPaused ? "Resume this room" : "Pause this room", async () => {

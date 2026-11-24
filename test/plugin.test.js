@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { RoomStore, shownText } from "../plugin/store.js";
 import { senderKind, targets } from "../src/policy.js";
 import { newKeyPair, sign } from "../src/sign.js";
-import { isPaused, members, messageFiles, post, readMessage } from "../src/vault.js";
+import { isPaused, members, messageFiles, post, readMessage, roomAbout } from "../src/vault.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const bin = join(here, "..", "bin", "rooms");
@@ -63,12 +63,17 @@ test("what the plugin writes, the rooms command reads the same way", async () =>
   assert.equal(room, "Launch 1.0", "characters a folder can't have are dropped");
   await assert.rejects(store.createRoom("launch 1.0"), /already a room called Launch 1\.0/);
   assert.deepEqual(await store.rooms(), ["Launch 1.0"]);
-  assert.deepEqual(await store.about(room), { title: "Launch: 1.0", description: "Getting 1.0 out" });
+  assert.deepEqual(await store.about(room), { title: "Launch: 1.0", description: "Getting 1.0 out", manual: "" });
+  const manual = await store.createRoom("Research", "What Scout finds", "Scout posts its finds.");
+  assert.deepEqual(roomAbout(b.vault, manual), { title: "Research", description: "What Scout finds", manual: "Scout posts its finds." });
 
   assert.equal(await store.addMember(room, { name: "Armin", kind: "person" }), true);
   assert.equal(await store.addMember(room, { name: "Claude", kind: "agent", addedBy: "Armin" }), true);
   assert.equal(await store.addMember(room, { name: "claude", kind: "agent" }), false, "names match across spelling");
   assert.deepEqual(members(b.vault, room).map((m) => [m.name, m.kind]), [["Armin", "person"], ["Claude", "agent"]]);
+  assert.equal(await store.setRole(room, "claude", "Ships: the code"), true);
+  assert.equal(members(b.vault, room)[1].role, "Ships: the code", "a role set in the plugin, as the command reads it");
+  assert.equal(await store.setRole(room, "Nobody", "x"), false);
 
   const pair = await newKeyPair();
   const signer = (payload) => sign(pair.privateKey, payload);

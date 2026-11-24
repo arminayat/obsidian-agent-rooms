@@ -1,7 +1,8 @@
 // The room files, as text. Pure: no file system and no Node APIs, so the Obsidian plugin can use it too.
 //
-//   Rooms/<room>/ROOM.md                                        what the room is for
-//   Rooms/<room>/members/<name>.md                              one file per member: name, kind (person or agent)
+//   Rooms/<room>/ROOM.md                                        the room's manual: what it's for, who does what
+//   Rooms/<room>/members/<name>.md                              one file per member: name, kind (person or agent),
+//                                                               and what it does here (role), if anyone said
 //   Rooms/<room>/<UTC day>/<UTC time to the ms>_<writer>_<random>.md   one file per message
 //   Rooms/<room>/PAUSED.md, Rooms/PAUSED.md                     nobody is woken while one exists
 //   Rooms/_status/<machine>.md                                  what each machine's relay last did
@@ -170,23 +171,55 @@ export const signedText = (room, message) =>
 
 // --- Members and rooms -----------------------------------------------------------------------------------
 
-/** @typedef {{ name: string, kind: "person" | "agent", file: string }} Member */
+/** @typedef {{ name: string, kind: "person" | "agent", role: string, file: string }} Member */
 
 /** @returns {Member} */
 export function parseMember(source, file) {
   const { fields } = parseFile(source);
-  return { name: text(fields.name) || file.replace(/\.md$/, ""), kind: text(fields.kind) === "person" ? "person" : "agent", file };
+  return { name: text(fields.name) || file.replace(/\.md$/, ""), kind: text(fields.kind) === "person" ? "person" : "agent", role: text(fields.role).trim(), file };
 }
 
 export const memberFileName = (name) => `${slug(name)}.md`;
 
-export function memberText({ name, kind, joined, addedBy = "" }) {
-  return `---\nname: ${yaml(name)}\nkind: ${kind}\njoined: ${joined}\n${addedBy ? `added_by: ${yaml(addedBy)}\n` : ""}---\n`;
+const oneLine = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
+
+export function memberText({ name, kind, joined, addedBy = "", role = "" }) {
+  role = oneLine(role);
+  return `---\nname: ${yaml(name)}\nkind: ${kind}\n${role ? `role: ${yaml(role)}\n` : ""}joined: ${joined}\n${addedBy ? `added_by: ${yaml(addedBy)}\n` : ""}---\n`;
 }
 
-export function roomText(name, about = "") {
-  const description = about || "A room where people and agents talk.";
-  return `---\ntitle: ${yaml(name)}\ndescription: ${yaml(description)}\n---\n# ${name}\n${about ? `\n${about}\n` : ""}`;
+/** A member file with its role set, or taken out when `role` is empty; every other line as it was. */
+export function withRole(source, role) {
+  role = oneLine(role);
+  const match = source.match(/^(\uFEFF?---(\r?\n))([\s\S]*?)(\r?\n---[ \t]*(?:\r?\n|$)[\s\S]*)$/);
+  if (!match) return role ? `---\nrole: ${yaml(role)}\n---\n${source}` : source;
+  const lines = match[3].split(/\r?\n/).filter((line) => !/^role:/.test(line));
+  if (role) {
+    const kind = lines.findIndex((line) => /^kind:/.test(line));
+    lines.splice(kind === -1 ? lines.length : kind + 1, 0, `role: ${yaml(role)}`);
+  }
+  return match[1] + lines.join(match[2]) + match[4];
+}
+
+export const DEFAULT_ABOUT = "A room where people and agents talk.";
+
+/** Shown to whoever opens ROOM.md, and never to agents: Obsidian hides %% comments %% when reading, and so does a wake. */
+const MANUAL_HINT = "%% This note is the room's manual. Every agent woken here is shown what you write below the title: what the room is for, " +
+  "what each member does here, and what doesn't belong. A member's role can also go in its file in members/. %%";
+
+export function roomText(name, about = "", manual = "") {
+  return `---\ntitle: ${yaml(name)}\ndescription: ${yaml(oneLine(about) || DEFAULT_ABOUT)}\n---\n# ${name}\n\n${MANUAL_HINT}\n${manual.trim() ? `\n${manual.trim()}\n` : ""}`;
+}
+
+/**
+ * What ROOM.md says: its title, a line on what the room is for, and its manual, the body below the title without
+ * %% comments %%. A room started before manuals had its description there, which isn't repeated as a manual.
+ */
+export function parseRoom(source, folder) {
+  const { fields, body } = parseFile(source ?? "");
+  const description = text(fields.description).trim();
+  const manual = body.replace(/%%[\s\S]*?%%/g, "").replace(/^\s*#[ \t].*(?:\r?\n|$)/, "").trim();
+  return { title: text(fields.title).trim() || folder, description, manual: manual === description ? "" : manual };
 }
 
 /** A folder name for a room: the name without the characters file systems and Obsidian refuse. */

@@ -1,7 +1,7 @@
 {
   "id": "agent-rooms",
   "name": "Agent Rooms",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "minAppVersion": "1.8.7",
   "description": "Rooms where you and your AI agents talk, as Markdown files in your vault. Post and read from any device; a relay beside sync wakes the agents a message is for.",
   "author": "arminayat",

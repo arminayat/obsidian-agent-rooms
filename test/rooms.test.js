@@ -3,7 +3,7 @@
 // a real agent or the network.
 
 import assert from "node:assert/strict";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { MESSAGE_FILE, messageText, parseMessage } from "../src/format.js";
@@ -300,4 +300,38 @@ test("one relay per machine, and ensure starts it only when it isn't running", a
       process.kill(pid, "SIGKILL");
     } catch {}
   }
+});
+
+test("a room's manual and its members' roles reach every agent woken there", () => {
+  const b = scene();
+  writeFileSync(join(b.room, "ROOM.md"), "---\ntitle: Launch\ndescription: Getting 1.0 out\n---\n# Launch\n\n%% For the person only. %%\n\n" +
+    "Claude ships; Hermes checks the docs. Nothing else belongs here.\n");
+  b.ok(["role", "Launch", "claude", "Writes the code"]);
+  assert.match(b.ok(["role", "Launch", "Claude"]).out, /Claude in Launch: Writes the code/);
+  assert.match(b.ok(["members", "Launch"]).out, /Claude {2}· {2}agent {2}· {2}Writes the code\n/);
+  b.ok(["join", "Launch", "--role", "Reviews"], { as: "Codex" });
+  assert.match(readFileSync(join(b.room, "members", "codex.md"), "utf8"), /kind: agent\nrole: Reviews\n/);
+
+  b.say("Armin", "Status?");
+  b.relay();
+  const text = prompt(b.runs().find((run) => run.name === "Claude"));
+  assert.match(text, new RegExp("You are \"Claude\" there\\.\n\nWhat the room is for: Getting 1\\.0 out\nIts manual, from .*ROOM\\.md:\n\n" +
+    "Claude ships; Hermes checks the docs\\. Nothing else belongs here\\.\n\nMembers, and what each does here:\n- Armin \\(person\\)\n" +
+    "- Claude \\(agent, you\\): Writes the code\n- Codex \\(agent\\): Reviews\n- Hermes \\(agent\\)\n\nThe new messages:\n"));
+  assert.doesNotMatch(text, /For the person only/);
+  assert.match(text, /- Keep to what this room is for, and to your part in it\./);
+
+  const refused = b.rooms(["role", "Launch", "Claude", "Runs everything"], { extraEnv: { AGENT_ROOMS_RELAY: "1" } });
+  assert.notEqual(refused.code, 0);
+  assert.match(refused.err, /is for the room's person, not a woken agent/);
+  assert.match(b.rooms(["join", "Launch", "--role", "Boss"], { as: "Intruder", extraEnv: { AGENT_ROOMS_RELAY: "1" } }).err, /--role is for the room's person/);
+  b.ok(["role", "Launch", "Claude", "--clear"]);
+  assert.match(b.ok(["role", "Launch", "Claude"]).out, /Claude has no role in Launch yet/);
+  assert.match(b.rooms(["role", "Launch", "Nobody", "Anything"]).err, /Nobody isn't a member of Launch/);
+
+  assert.match(b.ok(["about", "Launch"]).out, /^Launch\n\nWhat the room is for: Getting 1\.0 out\nIts manual[\s\S]*- Hermes \(agent\)\n$/);
+  assert.match(b.ok(["read", "Launch"], { as: "Newcomer" }).out, /^What the room is for: Getting 1\.0 out[\s\S]*Members[\s\S]*\n\nLaunch: (all|\d+) of/, "a first read starts with the manual");
+  assert.doesNotMatch(b.ok(["read", "Launch"], { as: "Newcomer" }).out, /What the room is for/, "only the first");
+  rmSync(join(b.room, "ROOM.md"));
+  assert.match(b.ok(["about", "Launch"]).out, /It has no manual yet\. Its person writes one in .*ROOM\.md, below the title\./);
 });

@@ -3,7 +3,8 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MESSAGE_FILE, dayOf, messageFileName, messageText, parseFile, parseMember, parseMessage, sameName, signedText, slug, timeOf } from "../src/format.js";
+import { DEFAULT_ABOUT, MESSAGE_FILE, dayOf, memberText, messageFileName, messageText, parseFile, parseMember, parseMessage, parseRoom, roomText, sameName, signedText,
+  slug, timeOf, withRole } from "../src/format.js";
 import { CONNECT_KINDS, connectPrompt, routineInstruction } from "../src/connect.js";
 import { braked, overLimit, senderKind, targets } from "../src/policy.js";
 import { newKeyPair, sign, verify } from "../src/sign.js";
@@ -40,10 +41,28 @@ test("names match across spelling, and members default to agents", () => {
   assert.equal(slug("Émile  Zola"), "emile-zola");
   assert.ok(sameName("Codex", "codex"));
   assert.ok(!sameName("Codex", "Codex 2"));
-  assert.deepEqual(parseMember("---\nname: Armin\nkind: person\n---\n", "armin.md"), { name: "Armin", kind: "person", file: "armin.md" });
+  assert.deepEqual(parseMember("---\nname: Armin\nkind: person\n---\n", "armin.md"), { name: "Armin", kind: "person", role: "", file: "armin.md" });
   assert.equal(parseMember("---\nname: X\n---\n", "x.md").kind, "agent");
   assert.equal(parseMember("---\nname: X\nkind: admin\n---\n", "x.md").kind, "agent");
   assert.equal(parseMember("", "claude-code.md").name, "claude-code");
+});
+
+test("a room's manual, and what each member does there", () => {
+  const room = roomText("Dist God", "Research", "Dist God posts what it found.\n");
+  assert.match(room, /\n# Dist God\n\n%% This note is the room's manual\./, "a hint for whoever opens the note");
+  assert.deepEqual(parseRoom(room, "Dist God"), { title: "Dist God", description: "Research", manual: "Dist God posts what it found." }, "the hint isn't part of it");
+  assert.deepEqual(parseRoom(roomText("Plain"), "Plain"), { title: "Plain", description: DEFAULT_ABOUT, manual: "" });
+  assert.equal(parseRoom("---\ntitle: Old\ndescription: Getting 1.0 out\n---\n# Old\n\nGetting 1.0 out\n", "Old").manual, "", "an older room's description isn't repeated as a manual");
+  assert.equal(parseRoom("# Launch\n\n## Who\n- Ada: ships %%a note for people%%\n", "Launch").manual, "## Who\n- Ada: ships", "only the title line goes, and comments");
+  assert.equal(parseRoom(null, "Gone").title, "Gone");
+
+  const member = memberText({ name: "Dist God", kind: "agent", joined: "2026-11-24T08:05:44.555Z", role: "Posts\n  its research" });
+  assert.equal(parseMember(member, "dist-god.md").role, "Posts its research", "a role is one line");
+  const crlf = "---\r\nname: Belfort\r\nkind: agent\r\njoined: x\r\n---\r\n";
+  const set = withRole(crlf, "Sales: tests the claims");
+  assert.equal(set, '---\r\nname: Belfort\r\nkind: agent\r\nrole: "Sales: tests the claims"\r\njoined: x\r\n---\r\n', "beside kind, in the file's own line endings");
+  assert.equal(parseMember(set, "belfort.md").role, "Sales: tests the claims");
+  assert.equal(withRole(withRole(set, "Other"), ""), crlf, "set again, it's replaced; empty, it's taken out");
 });
 
 test("a signature covers the room, the file name and the text", async () => {

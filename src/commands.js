@@ -1,16 +1,17 @@
 // The room commands agents (and people at a terminal) run: list, read, say, wait, join, leave, add, create,
-// members, pause, resume, news. They only read and write files in the vault; Obsidian Sync does the rest.
+// members, about, role, pause, resume, news. They only read and write files in the vault; Obsidian Sync does the rest.
 
 import { existsSync, readFileSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
 import { loadPlaces } from "./config.js";
 import { fail, listFlag, readerFor, shown, signerFor, vaultFor } from "./core.js";
-import { PAUSED, sameName } from "./format.js";
+import { DEFAULT_ABOUT, PAUSED, sameName } from "./format.js";
 import { braked, senderKind, targets } from "./policy.js";
 import { addMember, createRoom, findRoom, isPaused, markRead, members, messageFiles, notIn, placeKey, post, readMessage, removeMember,
-  roomDir, roomNames, roomsDir, unread, writeWhole } from "./vault.js";
+  roomAbout, roomDir, roomFile, roomNames, roomsDir, setRole, unread, writeWhole } from "./vault.js";
 
 const SHOWN_AT_MOST = 20;
+const MANUAL_AT_MOST = 4000;
 
 const when = (at) => at.replace("T", " ").replace(/(\.\d+)?Z$/, " UTC");
 const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
@@ -42,6 +43,29 @@ export function shownMessage(m) {
   if (m.to.length) header.push(`to ${m.to.join(", ")}`);
   if (m.re) header.push(`re ${m.re}`);
   return `── ${header.join(" · ")}\n${m.body}\n`;
+}
+
+/**
+ * What a room is for and who does what in it, from ROOM.md and the members' files: the top of every wake, of
+ * `rooms about`, and of a first read. `me` marks the reader among the members.
+ */
+export function roomBrief(vault, room, { about = roomAbout(vault, room), roomMembers = members(vault, room), me = "" } = {}) {
+  const lines = [];
+  if (about.description && about.description !== DEFAULT_ABOUT) lines.push(`What the room is for: ${about.description}`);
+  if (about.manual) {
+    const manual = about.manual.length > MANUAL_AT_MOST ? `${about.manual.slice(0, MANUAL_AT_MOST)}\n… (cut here; the rest is in ROOM.md)` : about.manual;
+    lines.push(`Its manual, from ${roomFile(vault, room)}:`, "", manual, "");
+  }
+  if (roomMembers.length) {
+    lines.push("Members, and what each does here:");
+    for (const m of roomMembers) lines.push(`- ${m.name} (${m.kind}${me && sameName(m.name, me) ? ", you" : ""})${m.role ? `: ${m.role}` : ""}`);
+  }
+  return lines.join("\n");
+}
+
+/** Setting a room's manual and roles is its person's: a woken agent asked to change them can't. */
+function personOnly(what) {
+  if (process.env.AGENT_ROOMS_RELAY) fail(`${what} is for the room's person, not a woken agent. Ask in the room instead.`);
 }
 
 async function print(config, vault, room, paths, flags) {
@@ -94,6 +118,8 @@ async function read(config, args, flags) {
   else if (typeof flags.last === "string") paths = all.slice(-Math.max(1, Number(flags.last) || SHOWN_AT_MOST));
   else if (fresh === null) paths = all.slice(-SHOWN_AT_MOST);
   if (!flags.json) {
+    const brief = fresh === null ? roomBrief(vault, room, { me: reader }) : "";
+    if (brief) console.log(`${brief}\n`);
     if (!all.length) console.log(`${room} has no messages yet.`);
     else if (!paths.length) console.log(`No new messages in ${room} (${all.length} in all).`);
     else console.log(`${room}: ${paths.length === all.length ? "all" : paths.length} of ${plural(all.length, "message")}${paths === fresh ? ", new since you last read" : ""}\n`);
@@ -175,7 +201,9 @@ async function join_(config, args, flags) {
   const room = roomFor(vault, args.join(" ").trim());
   const name = readerFor(config, flags);
   const kind = flags.person ? "person" : "agent";
-  if (!addMember(vault, room, { name, kind })) return console.log(`${name} is already a member of ${room}.`);
+  const role = typeof flags.role === "string" ? flags.role : "";
+  if (role) personOnly("--role");
+  if (!addMember(vault, room, { name, kind, role })) return console.log(`${name} is already a member of ${room}.`);
   console.log(kind === "person"
     ? `${name} joined ${room} as a person. Their messages count as a person's only when signed with a key this machine trusts.`
     : `${name} joined ${room}. Messages addressed to it, and every message from a person, wake it where its relay runs.`);
@@ -197,7 +225,9 @@ async function add(config, args, flags) {
   const room = roomFor(vault, roomName);
   const reader = readerFor(config, flags);
   if (!members(vault, room).some((m) => sameName(m.name, reader))) fail(`Only a member of ${room} can add someone to it. Join first: rooms join "${room}"`);
-  if (!addMember(vault, room, { name, kind: "agent", addedBy: reader })) return console.log(`${name} is already a member of ${room}.`);
+  const role = typeof flags.role === "string" ? flags.role : "";
+  if (role) personOnly("--role");
+  if (!addMember(vault, room, { name, kind: "agent", addedBy: reader, role })) return console.log(`${name} is already a member of ${room}.`);
   const note = typeof flags.message === "string" ? flags.message : `I added you to this room. Read ROOM.md and the recent messages to see what it's for.`;
   await post(vault, room, { from: reader, to: [name], seen: basename(messageFiles(vault, room).at(-1) ?? "") }, note, signerFor(reader));
   markRead(vault, room, reader);
@@ -209,7 +239,33 @@ async function membersOf(config, args, flags) {
   const room = roomFor(vault, args.join(" ").trim());
   const list_ = members(vault, room);
   if (!list_.length) return console.log(`${room} has no members yet.`);
-  for (const m of list_) console.log(`${m.name}  ·  ${m.kind}`);
+  for (const m of list_) console.log(`${m.name}  ·  ${m.kind}${m.role ? `  ·  ${m.role}` : ""}`);
+}
+
+/** The room's manual and who does what: everything a member should know before writing there. */
+async function about(config, args, flags) {
+  const vault = vaultFor(config, flags);
+  const room = roomFor(vault, args.join(" ").trim());
+  const me = typeof flags.as === "string" || process.env.AGENT_ROOMS_NAME ? readerFor(config, flags) : "";
+  const info = roomAbout(vault, room);
+  console.log(`${info.title}\n\n${roomBrief(vault, room, { about: info, me }) || "Nothing yet says what this room is for."}`);
+  if (!info.manual) console.log(`\nIt has no manual yet. Its person writes one in ${shown(roomFile(vault, room))}, below the title.`);
+}
+
+/** What a member does in the room: shown, set, or with --clear taken out. */
+async function role(config, args, flags) {
+  const vault = vaultFor(config, flags);
+  const [roomName, name, ...words] = args;
+  if (!roomName || !name) fail('rooms role "<room>" "<member>" ["<what it does here>" | --clear]');
+  const room = roomFor(vault, roomName);
+  const roomMembers = members(vault, room);
+  const member = roomMembers.find((m) => sameName(m.name, name)) ??
+    fail(`${name} isn't a member of ${room}. Members: ${roomMembers.map((m) => m.name).join(", ") || "none"}.`);
+  const text = words.join(" ").trim();
+  if (!text && !flags.clear) return console.log(member.role ? `${member.name} in ${room}: ${member.role}` : `${member.name} has no role in ${room} yet.`);
+  personOnly("`rooms role`");
+  setRole(vault, room, member.name, flags.clear ? "" : text);
+  console.log(flags.clear ? `${member.name} no longer has a role in ${room}.` : `${member.name} in ${room}: ${text.replace(/\s+/g, " ")}`);
 }
 
 async function pause(config, args, flags) {
@@ -257,7 +313,7 @@ async function news(config, args, flags) {
   for (const line of lines) console.log(line);
 }
 
-export const roomCommands = { list, create, read, say, wait, join: join_, leave, add, members: membersOf, pause, resume, news };
+export const roomCommands = { list, create, read, say, wait, join: join_, leave, add, members: membersOf, about, role, pause, resume, news };
 
 /** Messages loaded with who really wrote each: what the relay and the commands both judge by. */
 export { loaded };

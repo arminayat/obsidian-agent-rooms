@@ -5,7 +5,7 @@
 // rename, remove. Paths are vault-relative with `/`.
 
 import { DAY, MESSAGE_FILE, PAUSED, ROOMS, STATUS, dayOf, fileOf, memberFileName, memberText, messageFileName, messageText,
-  parseFile, parseMember, parseMessage, roomFolderName, roomText, sameName, signedText, timeOf } from "../src/format.js";
+  parseFile, parseMember, parseMessage, parseRoom, roomFolderName, roomText, sameName, signedText, timeOf, withRole } from "../src/format.js";
 
 const randomId = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(4));
@@ -79,11 +79,14 @@ export class RoomStore {
     return (await this.#list(this.folder)).folders.filter((name) => !/^[._]/.test(name)).sort();
   }
 
-  /** What ROOM.md says: its title and description. */
+  /** The room's manual note, which a person edits like any other. */
+  roomFile(room) {
+    return join(this.roomDir(room), "ROOM.md");
+  }
+
+  /** What ROOM.md says: its title, what the room is for, and its manual (see parseRoom). */
   async about(room) {
-    const text = await this.#read(join(this.roomDir(room), "ROOM.md"));
-    const { fields } = parseFile(text ?? "");
-    return { title: String(fields.title || room), description: String(fields.description || "") };
+    return parseRoom(await this.#read(this.roomFile(room)), room);
   }
 
   /** A room's messages, oldest first, as `<day>/<file>`. */
@@ -145,20 +148,29 @@ export class RoomStore {
     return { ...message, path };
   }
 
-  async createRoom(name, about = "") {
+  async createRoom(name, about = "", manual = "") {
     const folder = roomFolderName(name);
     if (!folder) throw new Error("That name leaves nothing to call the room's folder.");
     const taken = (await this.rooms()).find((room) => room.toLowerCase() === folder.toLowerCase());
     if (taken) throw new Error(`There's already a room called ${taken}.`);
-    await this.#writeWhole(join(this.roomDir(folder), "ROOM.md"), roomText(name, about));
+    await this.#writeWhole(this.roomFile(folder), roomText(name, about, manual));
     return folder;
   }
 
   /** Adds a member, one file each. False if they're one already. */
-  async addMember(room, { name, kind, addedBy = "" }) {
+  async addMember(room, { name, kind, addedBy = "", role = "" }) {
     if ((await this.members(room)).some((member) => sameName(member.name, name))) return false;
     await this.#writeWhole(join(this.roomDir(room), "members", memberFileName(name)),
-      memberText({ name, kind, joined: new Date().toISOString(), addedBy }));
+      memberText({ name, kind, joined: new Date().toISOString(), addedBy, role }));
+    return true;
+  }
+
+  /** Sets what a member does in the room, or takes it out when `role` is empty. False if they aren't a member. */
+  async setRole(room, name, role) {
+    const member = (await this.members(room)).find((m) => sameName(m.name, name));
+    if (!member) return false;
+    const path = join(this.roomDir(room), "members", member.file);
+    await this.#writeWhole(path, withRole((await this.#read(path)) ?? "", role));
     return true;
   }
 

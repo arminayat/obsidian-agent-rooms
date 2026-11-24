@@ -1,9 +1,9 @@
-// The plugin's dialogs: starting a room, a room's members, connecting a new agent, and what each machine's relay
-// last did.
+// The plugin's dialogs: starting a room, what a room is for, its members and their roles, connecting a new agent,
+// and what each machine's relay last did.
 
 import { MarkdownRenderer, Modal, Notice, Setting, moment, setIcon } from "obsidian";
 import { CONNECT_KINDS, connectPrompt } from "../src/connect.js";
-import { sameName } from "../src/format.js";
+import { DEFAULT_ABOUT, sameName } from "../src/format.js";
 
 const STALE_MS = 2 * 3_600_000; // a relay rewrites its note at least hourly, so two hours without one means trouble
 
@@ -29,13 +29,18 @@ export class NewRoomModal extends Modal {
     this.setTitle("New room");
     let name = "";
     let about = "";
+    let manual = "";
     const chosen = new Set();
     new Setting(contentEl).setName("Name").addText((text) => {
       text.setPlaceholder("Launch").onChange((value) => (name = value));
       window.setTimeout(() => text.inputEl.focus());
     });
-    new Setting(contentEl).setName("What it's for").setDesc("Agents read this when they're added.")
-      .addTextArea((area) => area.setPlaceholder("Getting 1.0 out").onChange((value) => (about = value)));
+    new Setting(contentEl).setName("What it's for").setDesc("One line, shown under its name.")
+      .addText((text) => text.setPlaceholder("Getting 1.0 out").onChange((value) => (about = value)));
+    new Setting(contentEl).setName("Manual").setClass("agent-rooms-wide")
+      .setDesc("Optional. Every agent woken here is shown it: what each member does here, and what doesn't belong. It's the room's ROOM.md note, to edit any time.")
+      .addTextArea((area) => area.setPlaceholder("Scout posts what each scan found, with links to its notes. Ask Scout for research, addressed to it. Nothing else belongs here.")
+        .onChange((value) => (manual = value)));
     const agents = await knownAgents(plugin.store);
     if (agents.length) {
       new Setting(contentEl).setName("Agents").setDesc("They become members. Nobody is woken until a message is posted.").setHeading();
@@ -43,7 +48,7 @@ export class NewRoomModal extends Modal {
     }
     new Setting(contentEl).addButton((button) => button.setButtonText("Start the room").setCta().onClick(async () => {
       try {
-        const room = await plugin.store.createRoom(name.trim(), about.trim());
+        const room = await plugin.store.createRoom(name.trim(), about.trim(), manual.trim());
         if (plugin.settings.name) await plugin.store.addMember(room, { name: plugin.settings.name, kind: "person" });
         for (const agent of chosen) await plugin.store.addMember(room, { name: agent, kind: "agent", addedBy: plugin.settings.name });
         this.close();
@@ -52,6 +57,43 @@ export class NewRoomModal extends Modal {
         new Notice(error.message);
       }
     }));
+  }
+
+  onClose() {
+    this.contentEl.empty();
+  }
+}
+
+/** What a room is for, its manual, and what each member does there: what every agent woken there is shown. */
+export class AboutModal extends Modal {
+  constructor(plugin, room) {
+    super(plugin.app);
+    this.plugin = plugin;
+    this.room = room;
+  }
+
+  async onOpen() {
+    const { contentEl, plugin, room } = this;
+    const store = plugin.store;
+    const [about, members] = await Promise.all([store.about(room), store.members(room)]);
+    this.setTitle(about.title);
+    if (about.description && about.description !== DEFAULT_ABOUT) contentEl.createEl("p", { cls: "agent-rooms-about-line", text: about.description });
+    const manual = contentEl.createDiv({ cls: "agent-rooms-manual" });
+    if (about.manual) await MarkdownRenderer.render(this.app, about.manual, manual, store.roomFile(room), plugin);
+    else manual.createEl("p", { cls: "setting-item-description", text: "No manual yet. Say what the room is for, what each member does here, and what doesn't belong: every agent woken here is shown it." });
+    new Setting(contentEl).setName("What each member does here").setHeading();
+    for (const m of members) new Setting(contentEl).setName(m.name).setDesc(m.role || (m.kind === "person" ? "Person" : "No role yet"));
+    new Setting(contentEl)
+      .addButton((button) => button.setButtonText("Edit the manual").setCta().onClick(async () => {
+        const file = this.app.vault.getAbstractFileByPath(store.roomFile(room));
+        if (!file) return new Notice(`${store.roomFile(room)} isn't there.`);
+        this.close();
+        await this.app.workspace.getLeaf("tab").openFile(file);
+      }))
+      .addButton((button) => button.setButtonText("Edit roles").onClick(() => {
+        this.close();
+        new MembersModal(plugin, room).open();
+      }));
   }
 
   onClose() {
@@ -81,6 +123,14 @@ export class MembersModal extends Modal {
       new Setting(contentEl)
         .setName(member.name)
         .setDesc(member.kind === "person" ? "Person" : "Agent: woken by your messages, and by agents that address it")
+        .addText((text) => {
+          text.setPlaceholder("What it does here").setValue(member.role);
+          text.inputEl.addClass("agent-rooms-role");
+          text.inputEl.addEventListener("change", async () => {
+            await store.setRole(room, member.name, text.getValue());
+            plugin.refresh();
+          });
+        })
         .addExtraButton((button) => button.setIcon("user-minus").setTooltip("Remove from the room").onClick(async () => {
           await store.removeMember(room, member.name);
           plugin.refresh();
@@ -105,6 +155,7 @@ export class MembersModal extends Modal {
         new ConnectModal(plugin, room).open();
       }));
     let agent = "";
+    let role = "";
     let tell = true;
     const suggestions = (await knownAgents(store)).filter((known) => !members.some((m) => sameName(m.name, known)));
     new Setting(contentEl).setName("Its name in rooms").setDesc("As it was set up on its machine, for example \"Claude Code in api\".")
@@ -116,11 +167,13 @@ export class MembersModal extends Modal {
           text.inputEl.setAttr("list", "agent-rooms-agents");
         }
       });
+    new Setting(contentEl).setName("What it does here").setDesc("Optional. Every agent woken here is shown it.")
+      .addText((text) => text.onChange((value) => (role = value)));
     new Setting(contentEl).setName("Tell it in the room").setDesc("Posts a message to it, which wakes it.")
       .addToggle((toggle) => toggle.setValue(true).onChange((on) => (tell = on)));
     new Setting(contentEl).addButton((button) => button.setButtonText("Add").setCta().onClick(async () => {
       if (!agent) return new Notice("Write the agent's name first.");
-      if (!(await store.addMember(room, { name: agent, kind: "agent", addedBy: name }))) return new Notice(`${agent} is already a member.`);
+      if (!(await store.addMember(room, { name: agent, kind: "agent", addedBy: name, role }))) return new Notice(`${agent} is already a member.`);
       if (tell && name) {
         const paths = await store.messagePaths(room);
         await store.post(room, { from: name, to: [agent], seen: paths.at(-1)?.split("/")[1] ?? "" },

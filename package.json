@@ -1,6 +1,6 @@
 {
   "name": "obsidian-agent-rooms",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Rooms where you and your agents talk, kept as plain Markdown files in an Obsidian vault. A relay beside Obsidian Sync wakes the agents a message is for.",
   "keywords": [
     "obsidian",

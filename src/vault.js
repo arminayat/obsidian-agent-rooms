@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { DAY, MESSAGE_FILE, PAUSED, ROOMS, dayOf, notIn, placeOf, memberFileName, memberText, messageFileName, messageText, parseMember,
-  parseMessage, roomFolderName, roomText, sameName, signedText, slug, timeOf } from "./format.js";
+  parseMessage, parseRoom, roomFolderName, roomText, sameName, signedText, slug, timeOf, withRole } from "./format.js";
 import { loadPlaces, savePlaces } from "./config.js";
 
 export { notIn, placeOf } from "./format.js";
@@ -61,6 +61,17 @@ export function members(vault, room) {
     .map((file) => parseMember(readFileSync(join(dir, file), "utf8"), file));
 }
 
+export const roomFile = (vault, room) => join(roomDir(vault, room), "ROOM.md");
+
+/** The room's title, what it's for, and its manual: see parseRoom. */
+export function roomAbout(vault, room) {
+  let source = "";
+  try {
+    source = readFileSync(roomFile(vault, room), "utf8");
+  } catch {}
+  return parseRoom(source, room);
+}
+
 export const isPaused = (vault, room) => existsSync(join(roomsDir(vault), PAUSED)) || existsSync(join(roomDir(vault, room), PAUSED));
 
 /** Writes a file so that it appears whole: under a hidden name first, then renamed. */
@@ -88,20 +99,29 @@ export async function post(vault, room, { from, to = [], re = "", seen = "", not
   return { ...message, path };
 }
 
-export function createRoom(vault, name, about = "") {
+export function createRoom(vault, name, about = "", manual = "") {
   const folder = roomFolderName(name);
   if (!folder) throw new Error("That name leaves nothing to call the room's folder.");
   // Ignoring case even where the file system doesn't: the vault also syncs to machines that do.
   const taken = findRoom(vault, folder);
   if (taken) throw new Error(`There's already a room called ${taken}.`);
-  writeWhole(join(roomDir(vault, folder), "ROOM.md"), roomText(name, about));
+  writeWhole(roomFile(vault, folder), roomText(name, about, manual));
   return folder;
 }
 
 /** Adds a member, one file each, so two joins never touch the same file. False if they're one already. */
-export function addMember(vault, room, { name, kind, addedBy = "" }) {
+export function addMember(vault, room, { name, kind, addedBy = "", role = "" }) {
   if (members(vault, room).some((member) => sameName(member.name, name))) return false;
-  writeWhole(join(roomDir(vault, room), "members", memberFileName(name)), memberText({ name, kind, joined: new Date().toISOString(), addedBy }));
+  writeWhole(join(roomDir(vault, room), "members", memberFileName(name)), memberText({ name, kind, joined: new Date().toISOString(), addedBy, role }));
+  return true;
+}
+
+/** Sets what a member does in the room, or takes it out when `role` is empty. False if they aren't a member. */
+export function setRole(vault, room, name, role) {
+  const member = members(vault, room).find((m) => sameName(m.name, name));
+  if (!member) return false;
+  const file = join(roomDir(vault, room), "members", member.file);
+  writeWhole(file, withRole(readFileSync(file, "utf8"), role));
   return true;
 }
 
