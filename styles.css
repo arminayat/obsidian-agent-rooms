@@ -99,6 +99,10 @@
   background: var(--background-modifier-hover);
 }
 
+.agent-rooms-row.is-active {
+  background: var(--background-modifier-active-hover);
+}
+
 .agent-rooms-row-top {
   display: flex;
   align-items: center;

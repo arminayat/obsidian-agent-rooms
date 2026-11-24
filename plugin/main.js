@@ -10,11 +10,12 @@ import { fileOf, notIn, placeOf, slug } from "../src/format.js";
 import { senderKind } from "../src/policy.js";
 import { newKeyPair, sign } from "../src/sign.js";
 import { RoomStore } from "./store.js";
-import { RoomsView, VIEW } from "./view.js";
+import { RoomsSidebar, RoomsView, SIDEBAR, VIEW } from "./view.js";
 import { ConnectModal, NewRoomModal } from "./modals.js";
 
 const KEY = "agent-rooms-key";
 const READ = "agent-rooms-read";
+const SIDEBAR_ADDED = "agent-rooms-sidebar-added";
 const DEFAULTS = { name: "", otherKeys: [] };
 
 export default class AgentRooms extends Plugin {
@@ -24,8 +25,16 @@ export default class AgentRooms extends Plugin {
     this.kinds = new Map();
 
     this.registerView(VIEW, (leaf) => new RoomsView(leaf, this));
+    this.registerView(SIDEBAR, (leaf) => new RoomsSidebar(leaf, this));
     this.addRibbonIcon("messages-square", "Open rooms", () => this.open());
     this.addCommand({ id: "open", name: "Open rooms", callback: () => this.open() });
+    this.addCommand({ id: "show-sidebar", name: "Show rooms in the sidebar", callback: () => this.showSidebar() });
+    // Rooms get a tab in the left sidebar once per device. Closed there, it stays closed: the command brings it back.
+    this.app.workspace.onLayoutReady(() => {
+      if (this.app.loadLocalStorage(SIDEBAR_ADDED)) return;
+      this.app.saveLocalStorage(SIDEBAR_ADDED, true);
+      if (!this.app.workspace.getLeavesOfType(SIDEBAR).length) this.showSidebar(false);
+    });
     this.addCommand({ id: "new-room", name: "New room", callback: () => new NewRoomModal(this).open() });
     this.addCommand({ id: "connect-agent", name: "Connect an agent", callback: () => new ConnectModal(this).open() });
     this.addCommand({ id: "pause-all", name: "Pause every room (nobody is woken)", callback: () => this.pauseAll(true) });
@@ -49,10 +58,32 @@ export default class AgentRooms extends Plugin {
     }
     this.app.workspace.revealLeaf(leaf);
     if (room && leaf.view instanceof RoomsView) await leaf.view.show(room);
+    if (Platform.isMobile) this.app.workspace.leftSplit?.collapse(); // chosen in the sidebar drawer: show the room
+  }
+
+  /** The list of rooms as a tab in the left sidebar, made if it isn't there. */
+  async showSidebar(reveal = true) {
+    let leaf = this.app.workspace.getLeavesOfType(SIDEBAR)[0];
+    if (!leaf) {
+      leaf = this.app.workspace.getLeftLeaf(false);
+      await leaf.setViewState({ type: SIDEBAR, active: reveal });
+    }
+    if (reveal) this.app.workspace.revealLeaf(leaf);
+  }
+
+  /** The rooms open in the main area: what the sidebar marks. */
+  openRooms() {
+    return new Set(this.app.workspace.getLeavesOfType(VIEW).map((leaf) => leaf.view?.room).filter(Boolean));
   }
 
   refresh() {
-    for (const leaf of this.app.workspace.getLeavesOfType(VIEW)) if (leaf.view instanceof RoomsView) leaf.view.refresh();
+    for (const type of [VIEW, SIDEBAR]) {
+      for (const leaf of this.app.workspace.getLeavesOfType(type)) if (leaf.view instanceof RoomsView) leaf.view.refresh();
+    }
+  }
+
+  refreshSidebar() {
+    for (const leaf of this.app.workspace.getLeavesOfType(SIDEBAR)) if (leaf.view instanceof RoomsView) leaf.view.refresh();
   }
 
   async saveSettings() {
@@ -126,8 +157,11 @@ export default class AgentRooms extends Plugin {
 
   markRead(room, paths) {
     const places = this.#places();
-    places[room] = placeOf(paths);
+    const place = placeOf(paths);
+    if (JSON.stringify(places[room]) === JSON.stringify(place)) return;
+    places[room] = place;
     this.app.saveLocalStorage(READ, places);
+    this.refreshSidebar(); // its count for this room
   }
 }
 

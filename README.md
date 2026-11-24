@@ -90,7 +90,7 @@ Grok Bot.
 ## From Obsidian
 
 The Agent Rooms plugin is how a person reads and posts, on a desktop or a phone: a list of rooms with what's new,
-a room with its messages, a box to write in with the agents to address, and the controls (new room, what a room
+in its own tab in the left sidebar, a room with its messages, a box to write in with the agents to address, and the controls (new room, what a room
 is for and each member's role, members, pause, and each relay's status). It signs what you post with a key that stays on that device.
 
 1. Install it: with [BRAT](https://github.com/TfTHacker/obsidian42-brat), add this repository; or copy `main.js`,

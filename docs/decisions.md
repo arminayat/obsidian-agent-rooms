@@ -100,6 +100,9 @@ the owner's explicit answer; it can change without anyone having been overruled.
 - **The plugin is in the first version**: rooms list with unread counts, room view, posting and replying with a
   member picker, creating rooms, managing members, pause, and each machine's relay status. Obsidian saves as you
   type, so only a composer gives a message a "send" moment.
+- **The list of rooms is a tab in the left sidebar**, beside the file explorer, added once per device (the owner
+  asked for it to be visible there). A room chosen there opens in the main area, where a conversation has room,
+  and is marked in the list. Closed, the tab stays closed; "Show rooms in the sidebar" brings it back.
 - **No notifications.** A failed wake shows as a relay notice in the room (after three tries, once) and in a
   status note per machine, `Rooms/_status/<machine>.md`, rewritten on change and hourly (the hourly write is a
   default).

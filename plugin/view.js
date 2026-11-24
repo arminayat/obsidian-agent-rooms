@@ -1,6 +1,7 @@
 // The rooms view: a list of rooms with what's new in each, and a room with its messages and a box to post in.
 // A room's screen is built once when it opens; a change in the vault redraws its messages and header, and leaves
-// what's being typed alone.
+// what's being typed alone. The same list sits in the sidebar, like the file explorer: a room chosen there opens
+// in the main area.
 
 import { ItemView, MarkdownRenderer, Notice, moment, setIcon } from "obsidian";
 import { fileOf, sameName } from "../src/format.js";
@@ -9,6 +10,7 @@ import { AboutModal, ConnectModal, MembersModal, NewRoomModal, RelaysModal } fro
 import { shownText } from "./store.js";
 
 export const VIEW = "agent-rooms";
+export const SIDEBAR = "agent-rooms-sidebar";
 const SHOWN = 60;
 const KIND_LABEL = { person: "", unverified: "not verified", agent: "agent", notice: "relay" };
 
@@ -72,7 +74,13 @@ export class RoomsView extends ItemView {
     this.body = this.contentEl.createDiv({ cls: "agent-rooms-body" });
     if (room) this.#buildComposer();
     this.leaf.updateHeader?.();
+    if (this.getViewType() === VIEW) this.plugin.refreshSidebar(); // which room is open shows there
     await this.refresh(true);
+  }
+
+  /** What choosing a room in the list does: here, open it in place. */
+  openRoom(room) {
+    return this.show(room);
   }
 
   /** Redraws what may have changed. Draws run one after another, never two at once. */
@@ -115,9 +123,10 @@ export class RoomsView extends ItemView {
       return;
     }
     const list = body.createDiv({ cls: "agent-rooms-list" });
+    const open = plugin.openRooms();
     for (const row of rows) {
-      const item = list.createDiv({ cls: "agent-rooms-row" });
-      item.addEventListener("click", () => this.show(row.room));
+      const item = list.createDiv({ cls: `agent-rooms-row${open.has(row.room) ? " is-active" : ""}` });
+      item.addEventListener("click", () => this.openRoom(row.room));
       const main = item.createDiv({ cls: "agent-rooms-row-main" });
       const top = main.createDiv({ cls: "agent-rooms-row-top" });
       top.createSpan({ cls: "agent-rooms-row-name", text: row.about.title });
@@ -314,5 +323,28 @@ export class RoomsView extends ItemView {
     const line = this.banner.createDiv({ cls: "agent-rooms-banner" });
     line.createSpan({ text });
     if (action) line.createEl("button", { text: action }).addEventListener("click", onClick);
+  }
+}
+
+/** The list of rooms in a sidebar, beside the file explorer. A room chosen there opens in the main area. */
+export class RoomsSidebar extends RoomsView {
+  getViewType() {
+    return SIDEBAR;
+  }
+
+  getDisplayText() {
+    return "Rooms";
+  }
+
+  getState() {
+    return {};
+  }
+
+  show() {
+    return super.show(null);
+  }
+
+  openRoom(room) {
+    return this.plugin.open(room);
   }
 }
